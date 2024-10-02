@@ -86,16 +86,22 @@
 #     app.run(debug=True)
 
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify,  render_template,  redirect, url_for, flash
 from models import db, ContactDetail, Agency, Consortium  # Ensure ContactDetail and Agency are imported
 from config import Config
 from flask_cors import CORS
 from flask_migrate import Migrate
+from werkzeug.utils import secure_filename
+import os
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})  # Allow all origins
 
 app.config.from_object(Config)
+app.config['SECRET_KEY'] = 'your_secret_key'  # Replace with a random secret key
+app.config['UPLOAD_FOLDER'] = 'uploads/'
+app.config['MAX_CONTENT_PATH'] = 16 * 1024 * 1024  # Maximum file size of 16MB
+
 
 # Initialize the database
 db.init_app(app)
@@ -104,6 +110,9 @@ migrate = Migrate(app, db)
 # Create tables at the application startup
 with app.app_context():
     db.create_all()
+    # Create the upload folder if it doesn't exist
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
 
 # Route to add a new agency
 @app.route('/agency', methods=['POST'])
@@ -256,6 +265,8 @@ def save_consortium():
     except Exception as e:
         db.session.rollback()  
         return jsonify({"error": str(e)}), 400
+    
+    
 
 
 if __name__ == '__main__':
