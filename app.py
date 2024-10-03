@@ -87,9 +87,10 @@
 
 
 from flask import Flask, request, jsonify
-from models import db, ContactDetail, Agency, Consortium  # Ensure ContactDetail and Agency are imported
+from models import db, ContactDetail, Agency, Consortium, MemberAccountAdministrator # Ensure ContactDetail and Agency are imported
 from config import Config
 from flask_cors import CORS
+from datetime import datetime
 from flask_migrate import Migrate
 
 app = Flask(__name__)
@@ -256,6 +257,50 @@ def save_consortium():
     except Exception as e:
         db.session.rollback()  
         return jsonify({"error": str(e)}), 400
+    from flask import request, jsonify
+
+@app.route('/api/member', methods=['POST'])
+def create_member():
+    data = request.json
+
+    agency_registration_date_str = data.get('agency_registration_date')  
+
+    try:
+        agency_registration_date = datetime.strptime(agency_registration_date_str, '%Y-%m-%d').date()
+    except (ValueError, TypeError) as e:
+        return jsonify({"error": "Invalid date format, should be YYYY-MM-DD"}), 400
+
+    new_member = MemberAccountAdministrator(
+        agency_registration_date=agency_registration_date,
+        agency_registration_number=data.get('agency_registration_number'),
+        hq_name=data['hq_name'],
+        hq_position=data['hq_position'],
+        hq_email=data['hq_email'],
+        hq_address=data['hq_address'],
+        hq_city=data['hq_city'],
+        hq_state=data['hq_state'],
+        hq_country=data['hq_country'],
+        hq_telephone=data['hq_telephone'],
+        hq_fax=data.get('hq_fax'),
+        regional_name=data.get('regional_name'),
+        regional_position=data.get('regional_position'),
+        regional_email=data.get('regional_email'),
+        regional_address=data.get('regional_address'),
+        regional_city=data.get('regional_city'),
+        regional_state=data.get('regional_state'),
+        regional_country=data.get('regional_country'),
+        regional_telephone=data.get('regional_telephone'),
+        regional_fax=data.get('regional_fax')
+    )
+
+    try:
+        db.session.add(new_member)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()  
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"message": "Member created successfully", "id": new_member.id}), 201
 
 
 if __name__ == '__main__':

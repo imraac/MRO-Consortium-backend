@@ -34,6 +34,7 @@
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.postgresql import JSON
+from datetime import datetime
 db = SQLAlchemy()
 
 class Agency(db.Model):
@@ -98,5 +99,63 @@ class Consortium(db.Model):
 
     def __repr__(self):
         return f'<Consortium {self.active_year}>'
+    
+
+class MemberAccountAdministrator(db.Model):
+
+    id = db.Column(db.Integer, primary_key=True)  # Primary key for the model
+    agency_registration_date = db.Column(db.Date, nullable=False)  # Date field
+    agency_registration_number = db.Column(db.String(100), nullable=False)
+    hq_name = db.Column(db.String(100), nullable=False)
+    hq_position = db.Column(db.String(100), nullable=False)
+    hq_email = db.Column(db.String(100), nullable=False)
+    hq_address = db.Column(db.String(200), nullable=False)
+    hq_city = db.Column(db.String(100), nullable=False)
+    hq_state = db.Column(db.String(100), nullable=False)
+    hq_country = db.Column(db.String(100), nullable=False)
+    hq_telephone = db.Column(db.String(20), nullable=False)
+    hq_fax = db.Column(db.String(20), nullable=True)  # Optional field
+
+    regional_name = db.Column(db.String(100), nullable=True)  # Optional field for regional name
+    regional_position = db.Column(db.String(100), nullable=True)  # Optional field for regional position
+    regional_email = db.Column(db.String(100), nullable=True)  # Optional field for regional email
+    regional_address = db.Column(db.String(200), nullable=True)  # Optional field for regional address
+    regional_city = db.Column(db.String(100), nullable=True)  # Optional field for regional city
+    regional_state = db.Column(db.String(100), nullable=True)  # Optional field for regional state
+    regional_country = db.Column(db.String(100), nullable=True)  # Optional field for regional country
+    regional_telephone = db.Column(db.String(20), nullable=True)  # Optional field for regional telephone
+    regional_fax = db.Column(db.String(20), nullable=True)  # Optional field for regional fax
+
+    def __init__(self, agency_registration_date, agency_registration_number, hq_name,
+                 hq_position, hq_email, hq_address, hq_city, hq_state, hq_country,
+                 hq_telephone, hq_fax=None, regional_name=None, regional_position=None,
+                 regional_email=None, regional_address=None, regional_city=None,
+                 regional_state=None, regional_country=None, regional_telephone=None,
+                 regional_fax=None):
+        self.agency_registration_date = agency_registration_date
+        self.agency_registration_number = agency_registration_number
+        self.hq_name = hq_name
+        self.hq_position = hq_position
+        self.hq_email = hq_email
+        self.hq_address = hq_address
+        self.hq_city = hq_city
+        self.hq_state = hq_state
+        self.hq_country = hq_country
+        self.hq_telephone = hq_telephone
+        self.hq_fax = hq_fax
+        self.regional_name = regional_name
+        self.regional_position = regional_position
+        self.regional_email = regional_email
+        self.regional_address = regional_address
+        self.regional_city = regional_city
+        self.regional_state = regional_state
+        self.regional_country = regional_country
+        self.regional_telephone = regional_telephone
+        self.regional_fax = regional_fax
+
+    def __repr__(self):
+        return f"<MemberAccountAdministrator {self.hq_name}>"
+
+
 
 
