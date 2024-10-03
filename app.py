@@ -87,11 +87,12 @@
 
 
 from flask import Flask, request, jsonify,  render_template,  redirect, url_for, flash
-from models import db, ContactDetail, Agency, Consortium  # Ensure ContactDetail and Agency are imported
+from models import db, ContactDetail, Agency, Consortium, FileUpload # Ensure ContactDetail and Agency are imported
 from config import Config
 from flask_cors import CORS
 from flask_migrate import Migrate
 from werkzeug.utils import secure_filename
+from datetime import datetime 
 import os
 
 app = Flask(__name__)
@@ -280,11 +281,15 @@ def upload_files():
 
         uploaded_files = {}
 
-        for key, file in files.items():
-            if file:
-                filename = secure_filename(file.filename)
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                uploaded_files[key] = filename
+    for key, file in files.items():
+      if file:
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        uploaded_files[key] = filename
+        print(f"File {key}: {filename}")  # Debugging line
+    else:
+        print(f"File {key} is missing or not uploaded")  # Debugging line
+
 
         # Create a new FileUpload instance with the filenames
         new_upload = FileUpload(
