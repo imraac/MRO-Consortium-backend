@@ -31,9 +31,10 @@
 #         }
 
 
-
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.postgresql import JSON
+from datetime import datetime
+
 db = SQLAlchemy()
 
 class Agency(db.Model):
@@ -63,6 +64,7 @@ class Agency(db.Model):
             'willing_to_participate': self.willing_to_participate,
             'commitment_to_principles': self.commitment_to_principles
         }
+
 class ContactDetail(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(150), nullable=False)
@@ -98,5 +100,18 @@ class Consortium(db.Model):
 
     def __repr__(self):
         return f'<Consortium {self.active_year}>'
+
+class FileUpload(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    registration_certificate = db.Column(db.String(150), nullable=True)
+    agency_profile = db.Column(db.String(150), nullable=True)
+    audit_report = db.Column(db.String(150), nullable=True)
+    ngo_consortium_mandate = db.Column(db.String(150), nullable=True)
+    icrc_code_of_conduct = db.Column(db.String(150), nullable=True)
+    upload_date = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<FileUpload {self.id}>'
+
 
 

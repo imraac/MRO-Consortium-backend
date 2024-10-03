@@ -266,8 +266,44 @@ def save_consortium():
         db.session.rollback()  
         return jsonify({"error": str(e)}), 400
     
-    
 
+@app.route('/upload', methods=['POST'])
+def upload_files():
+    if request.method == 'POST':
+        files = {
+            'registration_certificate': request.files.get('registration_certificate'),
+            'agency_profile': request.files.get('agency_profile'),
+            'audit_report': request.files.get('audit_report'),
+            'ngo_consortium_mandate': request.files.get('ngo_consortium_mandate'),
+            'icrc_code_of_conduct': request.files.get('icrc_code_of_conduct')
+        }
+
+        uploaded_files = {}
+
+        for key, file in files.items():
+            if file:
+                filename = secure_filename(file.filename)
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                uploaded_files[key] = filename
+
+        # Create a new FileUpload instance with the filenames
+        new_upload = FileUpload(
+            registration_certificate=uploaded_files.get('registration_certificate'),
+            agency_profile=uploaded_files.get('agency_profile'),
+            audit_report=uploaded_files.get('audit_report'),
+            ngo_consortium_mandate=uploaded_files.get('ngo_consortium_mandate'),
+            icrc_code_of_conduct=uploaded_files.get('icrc_code_of_conduct')
+        )
+
+        try:
+            # Add the new FileUpload record to the database
+            db.session.add(new_upload)
+            db.session.commit()
+
+            return jsonify({"message": "Files successfully uploaded!", "data": uploaded_files}), 201
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": str(e)}), 400
 
 if __name__ == '__main__':
     app.run(debug=True)
