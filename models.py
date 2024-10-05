@@ -270,24 +270,25 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import validates
 import re
 from datetime import datetime
+from flask_login import UserMixin
 
 db = SQLAlchemy()
 
-class User(db.Model):
-    __tablename__ = 'users'  
-    actions = db.relationship('UserAction', back_populates='user', cascade='all, delete-orphan')
-
+# User model
+class User(UserMixin, db.Model):
+    __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(129), nullable=False)
     role = db.Column(db.String(50), default='user')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # Use datetime.utcnow
-    agency_id = db.Column(db.Integer, db.ForeignKey('agencies.id'), nullable=True)  
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    agency_id = db.Column(db.Integer, db.ForeignKey('agencies.id'), nullable=True)
 
-    # Define a relationship to the Agency
+    # Relationships
+    actions = db.relationship('UserAction', back_populates='user', cascade='all, delete-orphan')
     agency = db.relationship('Agency', back_populates='users', foreign_keys=[agency_id])
-
+    
     # Other relationships
     contact_details = db.relationship('ContactDetail', back_populates='user', cascade='all, delete-orphan')
     founders = db.relationship('Founder', back_populates='user', cascade='all, delete-orphan')
@@ -312,10 +313,11 @@ class User(db.Model):
             "username": self.username,
             "email": self.email,
             "role": self.role,
-            "created_at": self.created_at.isoformat(),  # Convert to ISO format
+            "created_at": self.created_at.isoformat(),
             "agency_id": self.agency_id  
         }
 
+# UserAction model
 class UserAction(db.Model):
     __tablename__ = 'user_actions'
 
@@ -337,6 +339,7 @@ class UserAction(db.Model):
             'timestamp': self.timestamp.isoformat(),
         }
 
+# Agency model
 class Agency(db.Model):
     __tablename__ = 'agencies'
     
@@ -352,6 +355,7 @@ class Agency(db.Model):
     willing_to_participate = db.Column(db.Boolean, nullable=False)
     commitment_to_principles = db.Column(db.Boolean, nullable=False)
 
+    # Relationship to users
     users = db.relationship('User', back_populates='agency')  # Use 'users' to denote multiple User instances
 
     def __repr__(self):
@@ -372,7 +376,7 @@ class Agency(db.Model):
             'commitment_to_principles': self.commitment_to_principles,
         }
 
-# ContactDetail Model
+
 class ContactDetail(db.Model):
     __tablename__ = 'contact_detail'
 
@@ -397,7 +401,7 @@ class ContactDetail(db.Model):
             'role': self.role
         }
 
-# Founder Model
+
 class Founder(db.Model):
     __tablename__ = 'founder'
 
@@ -420,7 +424,6 @@ class Founder(db.Model):
             'clan': self.clan
         }
 
-# BoardDirector Model
 class BoardDirector(db.Model):
     __tablename__ = 'board_director'
 
@@ -443,7 +446,7 @@ class BoardDirector(db.Model):
             'clan': self.clan
         }
 
-# KeyStaff Model
+
 class KeyStaff(db.Model):
     __tablename__ = 'key_staff'
 
@@ -466,7 +469,7 @@ class KeyStaff(db.Model):
             'clan': self.clan
         }
 
-# Consortium Model
+
 class Consortium(db.Model):
     __tablename__ = 'consortium'
 
@@ -499,7 +502,7 @@ class Consortium(db.Model):
             'membership_type': self.membership_type
         }
 
-# MemberAccountAdministrator Model
+
 class MemberAccountAdministrator(db.Model):
     __tablename__ = 'member_account_administrator'
 
@@ -507,7 +510,7 @@ class MemberAccountAdministrator(db.Model):
     member_name = db.Column(db.String(100), nullable=False)
     member_email = db.Column(db.String(100), nullable=False)
 
-    # Additional fields from the second class
+  
     agency_registration_date = db.Column(db.Date, nullable=False)
     agency_registration_number = db.Column(db.String(100), nullable=False)
     hq_name = db.Column(db.String(100), nullable=False)
@@ -531,7 +534,7 @@ class MemberAccountAdministrator(db.Model):
             'user_id': self.user_id,
             'member_name': self.member_name,
             'member_email': self.member_email,
-            'agency_registration_date': self.agency_registration_date.isoformat(),  # Convert to ISO format
+            'agency_registration_date': self.agency_registration_date.isoformat(),  
             'agency_registration_number': self.agency_registration_number,
             'hq_name': self.hq_name,
             'hq_position': self.hq_position,
