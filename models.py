@@ -1,8 +1,10 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import validates
 import re
+from datetime import datetime
 
 db = SQLAlchemy()
+
 class User(db.Model):
     __tablename__ = 'users'  
 
@@ -12,15 +14,18 @@ class User(db.Model):
     password = db.Column(db.String(129), nullable=False)
     role = db.Column(db.String(50), default='user')
     created_at = db.Column(db.DateTime, default=db.func.now())
+    agency_id = db.Column(db.Integer, db.ForeignKey('agencies.id'), nullable=True)  
 
-  
-    agency_id = db.Column(db.Integer, db.ForeignKey('agency.id'), nullable=True)
+    # Define a relationship to the Agency
     agency = db.relationship('Agency', back_populates='users', foreign_keys=[agency_id])
 
+    # Other relationships
     contact_details = db.relationship('ContactDetail', back_populates='user')
     founders = db.relationship('Founder', back_populates='user')
     board_directors = db.relationship('BoardDirector', back_populates='user')
     key_staff = db.relationship('KeyStaff', back_populates='user')
+    consortiums = db.relationship('Consortium', back_populates='user')
+    member_accounts = db.relationship('MemberAccountAdministrator', back_populates='user')
 
     @validates('email')
     def validate_email(self, key, email):
@@ -39,13 +44,13 @@ class User(db.Model):
             "email": self.email,
             "role": self.role,
             "created_at": str(self.created_at),
-            "agency_id": self.agency_id
+            "agency_id": self.agency_id  
         }
 
 
 class Agency(db.Model):
-    __tablename__ = 'agency'  
-
+    __tablename__ = 'agencies'
+    
     id = db.Column(db.Integer, primary_key=True)
     full_name = db.Column(db.String(150), nullable=False)
     acronym = db.Column(db.String(50), nullable=True)
@@ -58,10 +63,7 @@ class Agency(db.Model):
     willing_to_participate = db.Column(db.Boolean, nullable=False)
     commitment_to_principles = db.Column(db.Boolean, nullable=False)
 
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-
-    # Reverse relationships
-    users = db.relationship('User', back_populates='agency', foreign_keys=[User.agency_id])
+    users = db.relationship('User', back_populates='agency')  # Use 'users' to denote multiple User instances
 
     def as_dict(self):
         return {
@@ -77,7 +79,9 @@ class Agency(db.Model):
             'willing_to_participate': self.willing_to_participate,
             'commitment_to_principles': self.commitment_to_principles
         }
-# ContactDetail model
+
+
+# ContactDetail Model
 class ContactDetail(db.Model):
     __tablename__ = 'contact_detail'
 
@@ -86,15 +90,9 @@ class ContactDetail(db.Model):
     contact = db.Column(db.String(100), nullable=False)
     clan = db.Column(db.String(100), nullable=True)
     role = db.Column(db.String(50), nullable=False)
-    
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  
-    user = db.relationship('User', back_populates='contact_details')  
 
-    def _init_(self, name, contact, clan, role):
-        self.name = name
-        self.contact = contact
-        self.clan = clan
-        self.role = role
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user = db.relationship('User', back_populates='contact_details')
 
     def as_dict(self):
         return {
@@ -105,8 +103,7 @@ class ContactDetail(db.Model):
             'role': self.role
         }
 
-
-# Founder model
+# Founder Model
 class Founder(db.Model):
     __tablename__ = 'founder'
 
@@ -115,14 +112,8 @@ class Founder(db.Model):
     contact = db.Column(db.String(100), nullable=False)
     clan = db.Column(db.String(100), nullable=False)
 
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  
-    user = db.relationship('User', back_populates='founders')  
-
-    def _init_(self, name, contact, clan, user_id):
-        self.name = name
-        self.contact = contact
-        self.clan = clan
-        self.user_id = user_id
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user = db.relationship('User', back_populates='founders')
 
     def as_dict(self):
         return {
@@ -132,8 +123,7 @@ class Founder(db.Model):
             'clan': self.clan
         }
 
-
-
+# BoardDirector Model
 class BoardDirector(db.Model):
     __tablename__ = 'board_director'
 
@@ -142,8 +132,8 @@ class BoardDirector(db.Model):
     contact = db.Column(db.String(100), nullable=False)
     clan = db.Column(db.String(100), nullable=False)
 
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  
-    user = db.relationship('User', back_populates='board_directors')  
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user = db.relationship('User', back_populates='board_directors')
 
     def as_dict(self):
         return {
@@ -153,8 +143,7 @@ class BoardDirector(db.Model):
             'clan': self.clan
         }
 
-
-
+# KeyStaff Model
 class KeyStaff(db.Model):
     __tablename__ = 'key_staff'
 
@@ -163,8 +152,8 @@ class KeyStaff(db.Model):
     contact = db.Column(db.String(100), nullable=False)
     clan = db.Column(db.String(100), nullable=False)
 
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  
-    user = db.relationship('User', back_populates='key_staff')  
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user = db.relationship('User', back_populates='key_staff')
 
     def as_dict(self):
         return {
@@ -174,13 +163,79 @@ class KeyStaff(db.Model):
             'clan': self.clan
         }
 
+# Consortium Model
+class Consortium(db.Model):
+    __tablename__ = 'consortium'
 
+    id = db.Column(db.Integer, primary_key=True)
+    active_year = db.Column(db.String(4), nullable=False)
+    partner_ngos = db.Column(db.Text, nullable=False)
+    international_staff = db.Column(db.Integer, nullable=False)
+    national_staff = db.Column(db.Integer, nullable=False)
+    program_plans = db.Column(db.Text, nullable=False)
+    main_donors = db.Column(db.Text, nullable=False)
+    annual_budget = db.Column(db.String(20), nullable=False)
+    membership_type = db.Column(db.String(50), nullable=False)
 
-def save_to_db(model):
-    db.session.add(model)
-    db.session.commit()
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user = db.relationship('User', back_populates='consortiums')
 
+    def as_dict(self):
+        return {
+            'id': self.id,
+            'active_year': self.active_year,
+            'user_id': self.user_id
+        }
 
-def create_founder(name, contact, clan, user_id):
-    new_founder = Founder(name=name, contact=contact, clan=clan, user_id=user_id)
-    save_to_db(new_founder)
+# MemberAccountAdministrator Model
+class MemberAccountAdministrator(db.Model):
+    __tablename__ = 'member_account_administrator'  
+    id = db.Column(db.Integer, primary_key=True)
+    agency_registration_date = db.Column(db.Date, nullable=False)
+    agency_registration_number = db.Column(db.String(100), nullable=False)
+    hq_name = db.Column(db.String(100), nullable=False)
+    hq_position = db.Column(db.String(100), nullable=False)
+    hq_email = db.Column(db.String(100), nullable=False)
+    hq_address = db.Column(db.String(200), nullable=False)
+    hq_city = db.Column(db.String(100), nullable=False)
+    hq_state = db.Column(db.String(100), nullable=False)
+    hq_country = db.Column(db.String(100), nullable=False)
+    hq_telephone = db.Column(db.String(20), nullable=False)
+    hq_fax = db.Column(db.String(20), nullable=True)
+    regional_name = db.Column(db.String(100), nullable=True)
+    regional_position = db.Column(db.String(100), nullable=True)
+    regional_email = db.Column(db.String(100), nullable=True)
+    regional_address = db.Column(db.String(200), nullable=True)
+    regional_city = db.Column(db.String(100), nullable=True)
+    regional_state = db.Column(db.String(100), nullable=True)
+    regional_country = db.Column(db.String(100), nullable=True)
+    regional_telephone = db.Column(db.String(20), nullable=True)
+    regional_fax = db.Column(db.String(20), nullable=True)
+
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user = db.relationship('User', back_populates='member_accounts')
+
+    def as_dict(self):
+        return {
+            'id': self.id,
+            'agency_registration_date': str(self.agency_registration_date),
+            'agency_registration_number': self.agency_registration_number,
+            'hq_name': self.hq_name,
+            'hq_position': self.hq_position,
+            'hq_email': self.hq_email,
+            'hq_address': self.hq_address,
+            'hq_city': self.hq_city,
+            'hq_state': self.hq_state,
+            'hq_country': self.hq_country,
+            'hq_telephone': self.hq_telephone,
+            'hq_fax': self.hq_fax,
+            'regional_name': self.regional_name,
+            'regional_position': self.regional_position,
+            'regional_email': self.regional_email,
+            'regional_address': self.regional_address,
+            'regional_city': self.regional_city,
+            'regional_state': self.regional_state,
+            'regional_country': self.regional_country,
+            'regional_telephone': self.regional_telephone,
+            'regional_fax': self.regional_fax
+        }
