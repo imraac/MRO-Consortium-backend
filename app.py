@@ -1,15 +1,16 @@
 from flask import Flask, request, jsonify, make_response
-from flask_restful import Resource, Api
-from models import db, User, Agency, BoardDirector, KeyStaff, Founder, ContactDetail  # Import all necessary models
+from models import db, ContactDetail, Agency, Consortium, MemberAccountAdministrator, User
 from config import Config
+from flask_restful import Resource, Api
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from flask_cors import CORS
+from datetime import datetime
 from flask_migrate import Migrate
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True, resources={r"/": {"origins": ""}})  # Allow all origins
-app.config["JWT_SECRET_KEY"] = "super-secret"  # Change this to a more secure key
+CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})  # Allow all origins
+
 app.config.from_object(Config)
 
 # Initialize the database
@@ -25,7 +26,6 @@ with app.app_context():
 # User Resource for Authentication
 class Users(Resource):
     def post(self):
-        # User Registration
         data = request.get_json()
         email = User.query.filter_by(email=data.get('email')).first()
         if email:
@@ -35,7 +35,8 @@ class Users(Resource):
             username=data.get("username"),
             email=data.get("email"),
             password=bcrypt.generate_password_hash(data.get("password")).decode('utf-8'),
-            role=data.get("role", "user")
+            role=data.get("role", "user"),
+            agency_id = None 
         )
 
         db.session.add(new_user)
@@ -52,7 +53,6 @@ class Users(Resource):
 
 class Login(Resource):
     def post(self):
-        # User Login
         data = request.get_json()
         email = data.get('email')
         password = data.get('password')
@@ -72,7 +72,6 @@ class Login(Resource):
 class VerifyToken(Resource):
     @jwt_required()
     def post(self):
-        # Verify JWT Token
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
         if user:
@@ -91,7 +90,9 @@ api.add_resource(VerifyToken, '/verify-token')
 
 # Route to add a new agency
 @app.route('/agency', methods=['POST'])
+@jwt_required()  # Require authentication
 def add_agency():
+    user_id = get_jwt_identity()  # Get the user ID from the JWT token
     data = request.get_json()
 
     try:
@@ -105,7 +106,8 @@ def add_agency():
             years_operational=data['years_operational'],
             reason_for_joining=data['reason_for_joining'],
             willing_to_participate=data['willing_to_participate'],
-            commitment_to_principles=data['commitment_to_principles']
+            commitment_to_principles=data['commitment_to_principles'],
+            user_id=user_id  # Associate agency with the user
         )
         db.session.add(agency)
         db.session.commit()
@@ -116,14 +118,20 @@ def add_agency():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# Additional agency routes go here...
-
-
+# Route to get all agencies for a specific user
+@app.route('/agencies', methods=['GET'])
+@jwt_required()  # Require authentication
+def get_agencies():
+    user_id = get_jwt_identity()  # Get the user ID from the JWT token
+    agencies = Agency.query.filter_by(user_id=user_id).all()  # Filter by user_id
+    return jsonify([agency.as_dict() for agency in agencies]), 200
 
 # Route to update an agency
 @app.route('/agency/<int:agency_id>', methods=['PUT'])
+@jwt_required()  # Require authentication
 def update_agency(agency_id):
-    agency = Agency.query.get_or_404(agency_id)
+    user_id = get_jwt_identity()  # Get the user ID from the JWT token
+    agency = Agency.query.filter_by(id=agency_id, user_id=user_id).first_or_404()  # Ensure the agency belongs to the user
     data = request.get_json()
 
     agency.full_name = data.get('full_name', agency.full_name)
@@ -140,69 +148,82 @@ def update_agency(agency_id):
     db.session.commit()
     return jsonify({"message": "Agency updated successfully!"}), 200
 
-# Route to save contact details, including founders, board directors, and key staff
-@app.route('/api/contact-details', methods=['POST'])
-def save_contact_details():
-    data = request.get_json()
-    print("Incoming data:", data)  # Log the incoming data
+@app.route('/agency/<int:agency_id>', methods=['DELETE'])
+@jwt_required()  
+def delete_agency(agency_id):
+    user_id = get_jwt_identity()  
+    agency = Agency.query.filter_by(id=agency_id, user_id=user_id).first_or_404()  # Ensure the agency belongs to the user
+    db.session.delete(agency)
+    db.session.commit()
+    return jsonify({"message": "Agency deleted successfully!"}), 200
 
-    # Validate input
+@app.route('/api/contact-details', methods=['POST'])
+@jwt_required()  
+def save_contact_details():
+    user_id = get_jwt_identity()  
+    data = request.get_json()
+    print("Incoming data:", data)  
+
     if not data or not isinstance(data, dict):
         return jsonify({"error": "Invalid input"}), 400
 
-    # Process and save founders
+    # Combine all contact details into a single entry
+    combined_details = []
+
+    
     if data.get('founders'):
-        for founder_data in data['founders']:
-            if isinstance(founder_data, dict):  # Ensure it's a dictionary
-                founder = Founder(
-                    name=founder_data.get('name', ''),
-                    contact=founder_data.get('contact', ''),
-                    clan=founder_data.get('clan', '')
-                )
-                db.session.add(founder)
+        if isinstance(data['founders'], list):
+            for founder in data['founders']:
+                if isinstance(founder, dict):  # Check if each founder is a dictionary
+                    combined_details.append({
+                        'name': founder.get('name', ''),
+                        'contact': founder.get('contact', ''),
+                        'clan': founder.get('clan', ''),
+                        'role': 'founder',
+                        'user_id': user_id  # Associate contact with the user
+                    })
 
-    # Process and save board directors
+    # Validate boardDirectors
     if data.get('boardDirectors'):
-        for director_data in data['boardDirectors']:
-            if isinstance(director_data, dict):  # Ensure it's a dictionary
-                board_director = BoardDirector(
-                    name=director_data.get('name', ''),
-                    contact=director_data.get('contact', ''),
-                    clan=director_data.get('clan', '')
-                )
-                db.session.add(board_director)
+        if isinstance(data['boardDirectors'], list):
+            for director in data['boardDirectors']:
+                if isinstance(director, dict):  # Check if each director is a dictionary
+                    combined_details.append({
+                        'name': director.get('name', ''),
+                        'contact': director.get('contact', ''),
+                        'clan': director.get('clan', ''),
+                        'role': 'board_director',
+                        'user_id': user_id  # Associate contact with the user
+                    })
 
-    # Process and save key staff
+    # Validate keyStaffs
     if data.get('keyStaffs'):
-        for staff_data in data['keyStaffs']:
-            if isinstance(staff_data, dict):  # Ensure it's a dictionary
-                key_staff = KeyStaff(
-                    name=staff_data.get('name', ''),
-                    contact=staff_data.get('contact', ''),
-                    clan=staff_data.get('clan', '')
-                )
-                db.session.add(key_staff)
+        if isinstance(data['keyStaffs'], list):
+            for staff in data['keyStaffs']:
+                if isinstance(staff, dict):  # Check if each staff is a dictionary
+                    combined_details.append({
+                        'name': staff.get('name', ''),
+                        'contact': staff.get('contact', ''),
+                        'clan': staff.get('clan', ''),
+                        'role': 'key_staff',
+                        'user_id': user_id  # Associate contact with the user
+                    })
 
-    try:
-        db.session.commit()
-        return jsonify({"message": "Contact details saved successfully!"}), 201
-    except Exception as e:
-        db.session.rollback()  # Rollback if there's an error
-        return jsonify({"error": str(e)}), 500
+    # Save combined contact details to the database
+    for detail in combined_details:
+        new_contact_detail = ContactDetail(
+            name=detail['name'],
+            contact=detail['contact'],
+            clan=detail['clan'],
+            role=detail['role'],
+            user_id=user_id  
+        )
+        db.session.add(new_contact_detail)
 
-# Route to get all contact details (founders, board directors, key staff)
-@app.route('/api/contact-details', methods=['GET'])
-def get_contact_details():
-    founders = Founder.query.all()
-    board_directors = BoardDirector.query.all()
-    key_staffs = KeyStaff.query.all()
+    db.session.commit()
 
-    return jsonify({
-        'founders': [founder.as_dict() for founder in founders],
-        'boardDirectors': [director.as_dict() for director in board_directors],
-        'keyStaffs': [staff.as_dict() for staff in key_staffs]
-    }), 200
+    return jsonify({"message": "Contact details saved successfully!"}), 201
 
 
-if __name__ == '_main_':
+if __name__ == '__main__':
     app.run(debug=True)
