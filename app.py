@@ -113,17 +113,17 @@ class VerifyToken(Resource):
         return make_response({"message": "Invalid token"}, 401)
 # 
 
-
+# Route to add an agency associated with the logged-in user
 @app.route('/agency', methods=['POST'])
-@jwt_required() 
+@jwt_required()  # Require authentication
 def add_agency():
-    current_user_id = get_jwt_identity()  
+    current_user_id = get_jwt_identity()  # Get the current logged-in user's ID
     data = request.get_json()
 
     try:
         agency = Agency(
             full_name=data['full_name'],
-            acronym=data.get('acronym'),  
+            acronym=data.get('acronym'),  # optional
             description=data['description'],
             mission_statement=data['mission_statement'],
             website=data['website'],
@@ -134,11 +134,11 @@ def add_agency():
             commitment_to_principles=data['commitment_to_principles'],
         )
         
-        agency.user_id = current_user_id  
+        agency.user_id = current_user_id  # Associate the agency with the current logged-in user
         db.session.add(agency)
         db.session.commit()
 
-       
+        # Prepare the response data
         response_data = {
             "id": agency.id,
             "full_name": agency.full_name,
@@ -151,7 +151,7 @@ def add_agency():
             "reason_for_joining": agency.reason_for_joining,
             "willing_to_participate": agency.willing_to_participate,
             "commitment_to_principles": agency.commitment_to_principles,
-            "user_id": agency.user_id  
+            "user_id": agency.user_id  # You can include the user_id as well
         }
 
         return jsonify({"message": "Agency added successfully!", "agency": response_data}), 201
@@ -160,7 +160,54 @@ def add_agency():
         return jsonify({"error": f"Missing field: {str(e)}"}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-# 
+
+# @app.route('/agency', methods=['POST'])
+# @jwt_required() 
+# def add_agency():
+#     current_user_id = get_jwt_identity()  
+#     data = request.get_json()
+
+#     try:
+#         agency = Agency(
+#             full_name=data['full_name'],
+#             acronym=data.get('acronym'),  
+#             description=data['description'],
+#             mission_statement=data['mission_statement'],
+#             website=data['website'],
+#             is_ngo=data['is_ngo'],
+#             years_operational=data['years_operational'],
+#             reason_for_joining=data['reason_for_joining'],
+#             willing_to_participate=data['willing_to_participate'],
+#             commitment_to_principles=data['commitment_to_principles'],
+#         )
+        
+#         agency.user_id = current_user_id  
+#         db.session.add(agency)
+#         db.session.commit()
+
+       
+#         response_data = {
+#             "id": agency.id,
+#             "full_name": agency.full_name,
+#             "acronym": agency.acronym,
+#             "description": agency.description,
+#             "mission_statement": agency.mission_statement,
+#             "website": agency.website,
+#             "is_ngo": agency.is_ngo,
+#             "years_operational": agency.years_operational,
+#             "reason_for_joining": agency.reason_for_joining,
+#             "willing_to_participate": agency.willing_to_participate,
+#             "commitment_to_principles": agency.commitment_to_principles,
+#             "user_id": agency.user_id  
+#         }
+
+#         return jsonify({"message": "Agency added successfully!", "agency": response_data}), 201
+
+#     except KeyError as e:
+#         return jsonify({"error": f"Missing field: {str(e)}"}), 400
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
+# # 
 
 @app.route('/agency/<int:agency_id>', methods=['DELETE'])
 @jwt_required()  
@@ -297,18 +344,25 @@ def handle_founder(id):
 
 
 
-
-# 2. Routes for Board Director
 @app.route('/board-directors', methods=['GET', 'POST'])
+@jwt_required()  # Ensure the user is authenticated before accessing this route
 def handle_board_directors():
+    current_user_id = get_jwt_identity()  # Get the user ID from the JWT token
+    print(f"User ID: {current_user_id}")  # Log the current user ID for debugging purposes
+
+    if current_user_id is None:
+        return jsonify({"msg": "User ID not found in token."}), 401  # Unauthorized if user ID is None
+
     if request.method == 'POST':
         data = request.json
+        
         new_board_director = BoardDirector(
             name=data.get('name'),
             contact=data.get('contact'),
             clan=data.get('clan'),
-            user_id=data.get('user_id')
+            user_id=current_user_id  # Set the user_id from the JWT
         )
+
         db.session.add(new_board_director)
         db.session.commit()
         return jsonify(new_board_director.as_dict()), 201
@@ -316,6 +370,7 @@ def handle_board_directors():
     elif request.method == 'GET':
         directors = BoardDirector.query.all()
         return jsonify([director.as_dict() for director in directors]), 200
+
 
 @app.route('/board-directors/<int:id>', methods=['GET', 'PUT', 'DELETE'])
 def handle_board_director(id):
@@ -340,26 +395,58 @@ def handle_board_director(id):
         return jsonify({"message": "Board Director deleted"}), 200
 
 
+# @app.route('/key-staff', methods=['GET', 'POST'])
+# @jwt_required()  # Protect this route with JWT authentication
+# def handle_key_staff():
+#     current_user_id = get_jwt_identity()  # Get the user ID from the JWT token
+#     print(f"User ID: {current_user_id}")  # Log the current user ID for debugging purposes
 
+#     if current_user_id is None:
+#         return jsonify({"msg": "User ID not found in token."}), 401  # Unauthorized if user ID is None
 
-# 3. Routes for Key Staff
+#     if request.method == 'POST':
+#         data = request.json
+#         new_staff = KeyStaff(
+#             name=data.get('name'),
+#             contact=data.get('contact'),
+#             clan=data.get('clan'),
+#             user_id=current_user_id  # Use the current user ID from the token
+#         )
+#         db.session.add(new_staff)
+#         db.session.commit()
+#         return jsonify(new_staff.as_dict()), 201
+
+#     elif request.method == 'GET':
+#         staff = KeyStaff.query.all()
+#         return jsonify([s.as_dict() for s in staff]), 200
+
 @app.route('/key-staff', methods=['GET', 'POST'])
+@jwt_required()
 def handle_key_staff():
+    current_user_id = get_jwt_identity()
+    print(f"User ID: {current_user_id}")
+
     if request.method == 'POST':
         data = request.json
+        
+        # Validate input data
+        if not all(key in data for key in ('name', 'contact', 'clan')):
+            return jsonify({"msg": "Missing required fields"}), 400
+        
         new_staff = KeyStaff(
             name=data.get('name'),
             contact=data.get('contact'),
             clan=data.get('clan'),
-            user_id=data.get('user_id')
+            user_id=current_user_id
         )
-        db.session.add(new_staff)
-        db.session.commit()
-        return jsonify(new_staff.as_dict()), 201
+        try:
+            db.session.add(new_staff)
+            db.session.commit()
+            return jsonify(new_staff.as_dict()), 201
+        except Exception as e:
+            db.session.rollback()  # Rollback on error
+            return jsonify({"msg": str(e)}), 500  # Return server error
 
-    elif request.method == 'GET':
-        staff = KeyStaff.query.all()
-        return jsonify([s.as_dict() for s in staff]), 200
 
 @app.route('/key-staff/<int:id>', methods=['GET', 'PUT', 'DELETE'])
 def handle_key_staff_member(id):
