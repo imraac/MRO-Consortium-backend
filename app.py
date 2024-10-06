@@ -1,15 +1,15 @@
 
 
 from flask import Flask, request, jsonify, make_response, session
-from models import db, ContactDetail, Agency, User ,UserAction
+from models import db, Founder, Agency, User ,UserAction ,BoardDirector,KeyStaff
 from config import Config
-
+from flask_login import  login_required,  current_user,LoginManager
 from flask import request, jsonify, session
 from flask_restful import Resource, Api
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from flask_cors import CORS
-from datetime import datetime
+from datetime import datetime,timedelta
 from flask_migrate import Migrate
 
 app = Flask(__name__)
@@ -17,7 +17,8 @@ CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
 
 app.config.from_object(Config)
 app.secret_key = Config.SECRET_KEY
-
+login_manager = LoginManager(app)  # This line is critical
+login_manager.init_app(app)
 db.init_app(app)
 migrate = Migrate(app, db)
 bcrypt = Bcrypt(app)
@@ -26,6 +27,13 @@ jwt = JWTManager(app)
 with app.app_context():
     db.create_all()
 
+app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=7)
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
 def get_current_user():
     user_id = get_jwt_identity()
@@ -57,6 +65,11 @@ class Users(Resource):
             "success": True,
             "message": "User has been created successfully"
         }, 201)
+    
+
+
+#   
+
 
 
 class Login(Resource):
@@ -68,7 +81,7 @@ class Login(Resource):
 
         if user and bcrypt.check_password_hash(user.password, password):
             access_token = create_access_token(identity=user.id)
-            session['user_id'] = user.id  # Store user ID in session
+            session['user_id'] = user.id 
             return make_response({
                 "user": user.to_dict(),
                 "access_token": access_token,
@@ -77,7 +90,9 @@ class Login(Resource):
             }, 200)
         return make_response({"message": "Invalid credentials"}, 401)
 
-# Resource for user logout
+# 
+
+
 class Logout(Resource):
     @jwt_required()
     def post(self):
@@ -88,7 +103,7 @@ class Logout(Resource):
 class VerifyToken(Resource):
     @jwt_required()
     def post(self):
-        current_user = get_current_user()  # Use the helper to get logged-in user
+        current_user = get_current_user()  
         if current_user:
             return make_response({
                 "user": current_user.to_dict(),
@@ -96,17 +111,19 @@ class VerifyToken(Resource):
                 "message": "Token is valid"
             }, 200)
         return make_response({"message": "Invalid token"}, 401)
-# Route to add an agency associated with the logged-in user
+# 
+
+
 @app.route('/agency', methods=['POST'])
-@jwt_required()  # Require authentication
+@jwt_required() 
 def add_agency():
-    current_user_id = get_jwt_identity()  # Get the current logged-in user's ID
+    current_user_id = get_jwt_identity()  
     data = request.get_json()
 
     try:
         agency = Agency(
             full_name=data['full_name'],
-            acronym=data.get('acronym'),  # optional
+            acronym=data.get('acronym'),  
             description=data['description'],
             mission_statement=data['mission_statement'],
             website=data['website'],
@@ -117,11 +134,11 @@ def add_agency():
             commitment_to_principles=data['commitment_to_principles'],
         )
         
-        agency.user_id = current_user_id  # Associate the agency with the current logged-in user
+        agency.user_id = current_user_id  
         db.session.add(agency)
         db.session.commit()
 
-        # Prepare the response data
+       
         response_data = {
             "id": agency.id,
             "full_name": agency.full_name,
@@ -134,7 +151,7 @@ def add_agency():
             "reason_for_joining": agency.reason_for_joining,
             "willing_to_participate": agency.willing_to_participate,
             "commitment_to_principles": agency.commitment_to_principles,
-            "user_id": agency.user_id  # You can include the user_id as well
+            "user_id": agency.user_id  
         }
 
         return jsonify({"message": "Agency added successfully!", "agency": response_data}), 201
@@ -143,23 +160,32 @@ def add_agency():
         return jsonify({"error": f"Missing field: {str(e)}"}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+# 
 
-# Route to get user actions associated with the logged-in user
+@app.route('/agency/<int:agency_id>', methods=['DELETE'])
+@jwt_required()  
+def delete_agency(agency_id):
+    user_id = get_jwt_identity()  
+    agency = Agency.query.filter_by(id=agency_id, user_id=user_id).first_or_404()  
+    db.session.delete(agency)
+    db.session.commit()
+    return jsonify({"message": "Agency deleted successfully!"}), 200
+
+
 @app.route('/user/actions', methods=['GET'])
-@jwt_required()  # Require authentication
+@jwt_required()  
 def get_user_actions():
-    current_user = get_current_user()  # Get the current logged-in user
+    current_user = get_current_user()  
     actions = UserAction.query.filter_by(user_id=current_user.id).all()
     return jsonify([action.as_dict() for action in actions]), 200
 
-# Route to update the agency associated with the logged-in user
 @app.route('/agency/<int:agency_id>', methods=['PUT'])
-@jwt_required()  # Require authentication
+@jwt_required()
 def update_agency(agency_id):
-    current_user = get_current_user()  # Get the current logged-in user
+    current_user = get_current_user() 
     data = request.get_json()
 
-    agency = Agency.query.filter_by(id=agency_id, user_id=current_user.id).first()  # Ensure agency belongs to the logged-in user
+    agency = Agency.query.filter_by(id=agency_id, user_id=current_user.id).first()  
     if not agency:
         return jsonify({"message": "Agency not found or not authorized"}), 404
 
@@ -180,10 +206,13 @@ def update_agency(agency_id):
         return jsonify({"message": "Agency updated successfully!"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+# 
 
-# Route to log user actions
+
+
+
 @app.route('/log-action', methods=['POST'])
-@jwt_required()  # Require authentication
+@jwt_required()  
 def log_user_action():
     current_user = get_current_user()  
     data = request.get_json()
@@ -206,111 +235,173 @@ def log_user_action():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/founders', methods=['POST'])
+@jwt_required()  # Change this to JWT-based authentication
+def create_founder():
+    current_user_id = get_jwt_identity()  # Get the user ID from the JWT token
+    print(f"User ID: {current_user_id}")  # Debug
+    
+    data = request.json
+    new_founder = Founder(
+        name=data['name'],
+        contact=data['contact'],
+        clan=data['clan'],
+        user_id=current_user_id  # Associate founder with the current logged-in user
+    )
+    db.session.add(new_founder)
+    db.session.commit()
+
+    user_action = UserAction(user_id=current_user_id, action="Created a founder")
+    db.session.add(user_action)
+    db.session.commit()
+
+    return jsonify(new_founder.as_dict()), 201
+
+
+
+
+
+
+
+@app.route('/founders/<int:id>', methods=['GET', 'PUT', 'DELETE'])
+@jwt_required()  # Ensure that a valid JWT token is required to access this route
+def handle_founder(id):
+    # Get the current user ID from the JWT token
+    current_user_id = get_jwt_identity()
+    print(f"User ID: {current_user_id}")
+
+    founder = Founder.query.get_or_404(id)
+
+    if request.method == 'GET':
+        return jsonify(founder.as_dict()), 200
+
+    elif request.method == 'PUT':
+        data = request.json
+        founder.name = data.get('name', founder.name)
+        founder.contact = data.get('contact', founder.contact)
+        founder.clan = data.get('clan', founder.clan)
+        founder.user_id = current_user_id  # Optionally associate the founder with the current user
+
+        db.session.commit()
+        return jsonify(founder.as_dict()), 200
+
+    elif request.method == 'DELETE':
+        db.session.delete(founder)
+        db.session.commit()
+        return jsonify({"message": "Founder deleted"}), 200
+
+
+
+
+
+
+
+
+
+# 2. Routes for Board Director
+@app.route('/board-directors', methods=['GET', 'POST'])
+def handle_board_directors():
+    if request.method == 'POST':
+        data = request.json
+        new_board_director = BoardDirector(
+            name=data.get('name'),
+            contact=data.get('contact'),
+            clan=data.get('clan'),
+            user_id=data.get('user_id')
+        )
+        db.session.add(new_board_director)
+        db.session.commit()
+        return jsonify(new_board_director.as_dict()), 201
+
+    elif request.method == 'GET':
+        directors = BoardDirector.query.all()
+        return jsonify([director.as_dict() for director in directors]), 200
+
+@app.route('/board-directors/<int:id>', methods=['GET', 'PUT', 'DELETE'])
+def handle_board_director(id):
+    director = BoardDirector.query.get_or_404(id)
+
+    if request.method == 'GET':
+        return jsonify(director.as_dict()), 200
+
+    elif request.method == 'PUT':
+        data = request.json
+        director.name = data.get('name', director.name)
+        director.contact = data.get('contact', director.contact)
+        director.clan = data.get('clan', director.clan)
+        director.user_id = data.get('user_id', director.user_id)
+
+        db.session.commit()
+        return jsonify(director.as_dict()), 200
+
+    elif request.method == 'DELETE':
+        db.session.delete(director)
+        db.session.commit()
+        return jsonify({"message": "Board Director deleted"}), 200
+
+
+
+
+# 3. Routes for Key Staff
+@app.route('/key-staff', methods=['GET', 'POST'])
+def handle_key_staff():
+    if request.method == 'POST':
+        data = request.json
+        new_staff = KeyStaff(
+            name=data.get('name'),
+            contact=data.get('contact'),
+            clan=data.get('clan'),
+            user_id=data.get('user_id')
+        )
+        db.session.add(new_staff)
+        db.session.commit()
+        return jsonify(new_staff.as_dict()), 201
+
+    elif request.method == 'GET':
+        staff = KeyStaff.query.all()
+        return jsonify([s.as_dict() for s in staff]), 200
+
+@app.route('/key-staff/<int:id>', methods=['GET', 'PUT', 'DELETE'])
+def handle_key_staff_member(id):
+    staff = KeyStaff.query.get_or_404(id)
+
+    if request.method == 'GET':
+        return jsonify(staff.as_dict()), 200
+
+    elif request.method == 'PUT':
+        data = request.json
+        staff.name = data.get('name', staff.name)
+        staff.contact = data.get('contact', staff.contact)
+        staff.clan = data.get('clan', staff.clan)
+        staff.user_id = data.get('user_id', staff.user_id)
+
+        db.session.commit()
+        return jsonify(staff.as_dict()), 200
+
+    elif request.method == 'DELETE':
+        db.session.delete(staff)
+        db.session.commit()
+        return jsonify({"message": "Key Staff deleted"}), 200
+
+
+
+
+
+
+
+
+
+
 api = Api(app)
 api.add_resource(Users, '/signup')
 api.add_resource(Login, '/login')
 api.add_resource(Logout, '/logout')
 api.add_resource(VerifyToken, '/verify-token')
 
-@app.route('/agency/<int:agency_id>', methods=['DELETE'])
-@jwt_required()  
-def delete_agency(agency_id):
-    user_id = get_jwt_identity()  
-    agency = Agency.query.filter_by(id=agency_id, user_id=user_id).first_or_404()  
-    db.session.delete(agency)
-    db.session.commit()
-    return jsonify({"message": "Agency deleted successfully!"}), 200
 
-@app.route('/contact-details', methods=['POST'])
-@jwt_required()  
-def save_contact_details():
-    user_id = get_jwt_identity()  
-    data = request.get_json()
-    print("Incoming data:", data)  # Consider replacing this with logging
 
-    if not data or not isinstance(data, dict):
-        return jsonify({"error": "Invalid input"}), 400
 
-    combined_details = []
 
-    if data.get('founders'):
-        if isinstance(data['founders'], list):
-            for founder in data['founders']:
-                if isinstance(founder, dict):  
-                    name = founder.get('name', '').strip()
-                    contact = founder.get('contact', '').strip()
-                    clan = founder.get('clan', '').strip()
-                    
-                    if not name or not contact or not clan:
-                        return jsonify({"error": "Founder fields cannot be empty"}), 400
-
-                    combined_details.append({
-                        'name': name,
-                        'contact': contact,
-                        'clan': clan,
-                        'role': 'founder',
-                        'user_id': user_id
-                    })
-
-    if data.get('boardDirectors'):
-        if isinstance(data['boardDirectors'], list):
-            for director in data['boardDirectors']:
-                if isinstance(director, dict):  
-                    name = director.get('name', '').strip()
-                    contact = director.get('contact', '').strip()
-                    clan = director.get('clan', '').strip()
-                    
-                    if not name or not contact or not clan:
-                        return jsonify({"error": "Director fields cannot be empty"}), 400
-
-                    combined_details.append({
-                        'name': name,
-                        'contact': contact,
-                        'clan': clan,
-                        'role': 'board_director',
-                        'user_id': user_id
-                    })
-
-    if data.get('keyStaffs'):
-        if isinstance(data['keyStaffs'], list):
-            for staff in data['keyStaffs']:
-                if isinstance(staff, dict):  
-                    name = staff.get('name', '').strip()
-                    contact = staff.get('contact', '').strip()
-                    clan = staff.get('clan', '').strip()
-                    
-                    if not name or not contact or not clan:
-                        return jsonify({"error": "Staff fields cannot be empty"}), 400
-
-                    combined_details.append({
-                        'name': name,
-                        'contact': contact,
-                        'clan': clan,
-                        'role': 'key_staff',
-                        'user_id': user_id
-                    })
-
-    # Save combined contact details to the database
-    try:
-        for detail in combined_details:
-            new_contact_detail = ContactDetail(
-                name=detail['name'],
-                contact=detail['contact'],
-                clan=detail['clan'],
-                role=detail['role'],
-                user_id=user_id  
-            )
-            db.session.add(new_contact_detail)
-
-        db.session.commit()
-
-        return jsonify({"message": "Contact details saved successfully!", "details": [detail.as_dict() for detail in combined_details]}), 201
-
-    except Exception as e:
-        db.session.rollback()  # Rollback the session if any error occurs
-        return jsonify({"error": str(e)}), 500
-
-# Error handlers
 @app.errorhandler(404)
 def not_found_error(error):
     return jsonify({"error": "Resource not found"}), 404

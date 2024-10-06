@@ -23,7 +23,6 @@ class User(UserMixin, db.Model):
     agency = db.relationship('Agency', back_populates='users', foreign_keys=[agency_id])
     
     # Other relationships
-    contact_details = db.relationship('ContactDetail', back_populates='user', cascade='all, delete-orphan')
     founders = db.relationship('Founder', back_populates='user', cascade='all, delete-orphan')
     board_directors = db.relationship('BoardDirector', back_populates='user', cascade='all, delete-orphan')
     key_staff = db.relationship('KeyStaff', back_populates='user', cascade='all, delete-orphan')
@@ -88,8 +87,7 @@ class Agency(db.Model):
     willing_to_participate = db.Column(db.Boolean, nullable=False)
     commitment_to_principles = db.Column(db.Boolean, nullable=False)
 
-    # Relationship to users
-    users = db.relationship('User', back_populates='agency')  # Use 'users' to denote multiple User instances
+    users = db.relationship('User', back_populates='agency')  
 
     def __repr__(self):
         return f"<Agency {self.id}: {self.full_name}>"
@@ -110,44 +108,16 @@ class Agency(db.Model):
         }
 
 
-class ContactDetail(db.Model):
-    __tablename__ = 'contact_detail'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(150), nullable=False)
-    contact = db.Column(db.String(100), nullable=False)
-    clan = db.Column(db.String(100), nullable=True)
-    role = db.Column(db.String(50), nullable=False)
-
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    user = db.relationship('User', back_populates='contact_details')
-
-    def __repr__(self):
-        return f"<ContactDetail {self.id}: {self.name}>"
-
-    def as_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'contact': self.contact,
-            'clan': self.clan,
-            'role': self.role
-        }
 
 
 class Founder(db.Model):
     __tablename__ = 'founder'
-
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     contact = db.Column(db.String(100), nullable=False)
     clan = db.Column(db.String(100), nullable=False)
-
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     user = db.relationship('User', back_populates='founders')
-
-    def __repr__(self):
-        return f"<Founder {self.id}: {self.name}>"
 
     def as_dict(self):
         return {
@@ -159,17 +129,12 @@ class Founder(db.Model):
 
 class BoardDirector(db.Model):
     __tablename__ = 'board_director'
-
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     contact = db.Column(db.String(100), nullable=False)
     clan = db.Column(db.String(100), nullable=False)
-
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     user = db.relationship('User', back_populates='board_directors')
-
-    def __repr__(self):
-        return f"<BoardDirector {self.id}: {self.name}>"
 
     def as_dict(self):
         return {
@@ -182,17 +147,12 @@ class BoardDirector(db.Model):
 
 class KeyStaff(db.Model):
     __tablename__ = 'key_staff'
-
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     contact = db.Column(db.String(100), nullable=False)
     clan = db.Column(db.String(100), nullable=False)
-
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     user = db.relationship('User', back_populates='key_staff')
-
-    def __repr__(self):
-        return f"<KeyStaff {self.id}: {self.name}>"
 
     def as_dict(self):
         return {
