@@ -221,71 +221,94 @@ def delete_agency(agency_id):
     db.session.commit()
     return jsonify({"message": "Agency deleted successfully!"}), 200
 
-@app.route('/api/contact-details', methods=['POST'])
+@app.route('/contact-details', methods=['POST'])
 @jwt_required()  
 def save_contact_details():
     user_id = get_jwt_identity()  
     data = request.get_json()
-    print("Incoming data:", data)  
+    print("Incoming data:", data)  # Consider replacing this with logging
 
     if not data or not isinstance(data, dict):
         return jsonify({"error": "Invalid input"}), 400
 
-    # Combine all contact details into a single entry
     combined_details = []
 
     if data.get('founders'):
         if isinstance(data['founders'], list):
             for founder in data['founders']:
-                if isinstance(founder, dict):  # Check if each founder is a dictionary
+                if isinstance(founder, dict):  
+                    name = founder.get('name', '').strip()
+                    contact = founder.get('contact', '').strip()
+                    clan = founder.get('clan', '').strip()
+                    
+                    if not name or not contact or not clan:
+                        return jsonify({"error": "Founder fields cannot be empty"}), 400
+
                     combined_details.append({
-                        'name': founder.get('name', ''),
-                        'contact': founder.get('contact', ''),
-                        'clan': founder.get('clan', ''),
+                        'name': name,
+                        'contact': contact,
+                        'clan': clan,
                         'role': 'founder',
-                        'user_id': user_id  # Associate contact with the user
+                        'user_id': user_id
                     })
 
-    # Validate boardDirectors
     if data.get('boardDirectors'):
         if isinstance(data['boardDirectors'], list):
             for director in data['boardDirectors']:
-                if isinstance(director, dict):  # Check if each director is a dictionary
+                if isinstance(director, dict):  
+                    name = director.get('name', '').strip()
+                    contact = director.get('contact', '').strip()
+                    clan = director.get('clan', '').strip()
+                    
+                    if not name or not contact or not clan:
+                        return jsonify({"error": "Director fields cannot be empty"}), 400
+
                     combined_details.append({
-                        'name': director.get('name', ''),
-                        'contact': director.get('contact', ''),
-                        'clan': director.get('clan', ''),
+                        'name': name,
+                        'contact': contact,
+                        'clan': clan,
                         'role': 'board_director',
-                        'user_id': user_id  # Associate contact with the user
+                        'user_id': user_id
                     })
 
-    # Validate keyStaffs
     if data.get('keyStaffs'):
         if isinstance(data['keyStaffs'], list):
             for staff in data['keyStaffs']:
-                if isinstance(staff, dict):  # Check if each staff is a dictionary
+                if isinstance(staff, dict):  
+                    name = staff.get('name', '').strip()
+                    contact = staff.get('contact', '').strip()
+                    clan = staff.get('clan', '').strip()
+                    
+                    if not name or not contact or not clan:
+                        return jsonify({"error": "Staff fields cannot be empty"}), 400
+
                     combined_details.append({
-                        'name': staff.get('name', ''),
-                        'contact': staff.get('contact', ''),
-                        'clan': staff.get('clan', ''),
+                        'name': name,
+                        'contact': contact,
+                        'clan': clan,
                         'role': 'key_staff',
-                        'user_id': user_id  # Associate contact with the user
+                        'user_id': user_id
                     })
 
     # Save combined contact details to the database
-    for detail in combined_details:
-        new_contact_detail = ContactDetail(
-            name=detail['name'],
-            contact=detail['contact'],
-            clan=detail['clan'],
-            role=detail['role'],
-            user_id=user_id  
-        )
-        db.session.add(new_contact_detail)
+    try:
+        for detail in combined_details:
+            new_contact_detail = ContactDetail(
+                name=detail['name'],
+                contact=detail['contact'],
+                clan=detail['clan'],
+                role=detail['role'],
+                user_id=user_id  
+            )
+            db.session.add(new_contact_detail)
 
-    db.session.commit()
+        db.session.commit()
 
-    return jsonify({"message": "Contact details saved successfully!"}), 201
+        return jsonify({"message": "Contact details saved successfully!", "details": [detail.as_dict() for detail in combined_details]}), 201
+
+    except Exception as e:
+        db.session.rollback()  # Rollback the session if any error occurs
+        return jsonify({"error": str(e)}), 500
 
 # Error handlers
 @app.errorhandler(404)
