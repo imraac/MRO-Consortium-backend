@@ -10,6 +10,7 @@ db = SQLAlchemy()
 # User model
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
+    
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
@@ -20,9 +21,8 @@ class User(UserMixin, db.Model):
 
     # Relationships
     actions = db.relationship('UserAction', back_populates='user', cascade='all, delete-orphan')
-    agency = db.relationship('Agency', back_populates='users', foreign_keys=[agency_id])
-    
-    # Other relationships
+    # Specify the foreign_keys to clarify which column is used for the relationship
+    agencies = db.relationship('Agency', backref='user', foreign_keys='Agency.user_id', lazy=True)
     founders = db.relationship('Founder', back_populates='user', cascade='all, delete-orphan')
     board_directors = db.relationship('BoardDirector', back_populates='user', cascade='all, delete-orphan')
     key_staff = db.relationship('KeyStaff', back_populates='user', cascade='all, delete-orphan')
@@ -49,6 +49,8 @@ class User(UserMixin, db.Model):
             "agency_id": self.agency_id  
         }
 
+
+
 # UserAction model
 class UserAction(db.Model):
     __tablename__ = 'user_actions'
@@ -71,11 +73,13 @@ class UserAction(db.Model):
             'timestamp': self.timestamp.isoformat(),
         }
 
-# Agency model
+
+
 class Agency(db.Model):
     __tablename__ = 'agencies'
     
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Foreign key to User
     full_name = db.Column(db.String(150), nullable=False)
     acronym = db.Column(db.String(50), nullable=True)
     description = db.Column(db.Text, nullable=False)
@@ -87,13 +91,11 @@ class Agency(db.Model):
     willing_to_participate = db.Column(db.Boolean, nullable=False)
     commitment_to_principles = db.Column(db.Boolean, nullable=False)
 
-    users = db.relationship('User', back_populates='agency')  
-
     def __repr__(self):
         return f"<Agency {self.id}: {self.full_name}>"
 
     def as_dict(self):
-        return {  
+        return {
             'id': self.id,
             'full_name': self.full_name,
             'acronym': self.acronym,
@@ -105,8 +107,8 @@ class Agency(db.Model):
             'reason_for_joining': self.reason_for_joining,
             'willing_to_participate': self.willing_to_participate,
             'commitment_to_principles': self.commitment_to_principles,
+            'user_id': self.user_id  # Include user_id if needed in the output
         }
-
 
 
 
