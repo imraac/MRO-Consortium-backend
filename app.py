@@ -2,6 +2,11 @@
 
 from flask import Flask, request, jsonify, make_response, session
 from models import db, Founder, Agency, User ,UserAction ,BoardDirector,KeyStaff,Consortium ,MemberAccountAdministrator,ConsortiumApplication
+
+
+from flask import Flask, request, jsonify
+from models import db, ContactDetail, Agency, Consortium  # Ensure ContactDetail and Agency are imported
+
 from config import Config
 from flask_login import  login_required,  current_user,LoginManager
 from flask import request, jsonify, session
@@ -593,6 +598,7 @@ def create_member_account():
         db.session.commit()
         return jsonify(new_member.as_dict()), 201
     except Exception as e:
+
         return jsonify({'error': str(e)}), 400
 
 
@@ -782,6 +788,36 @@ def not_found_error(error):
 @app.errorhandler(500)
 def internal_error(error):
     return jsonify({"error": "Internal server error"}), 500
+=======
+        db.session.rollback()  # Rollback if there's an error
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/api/consortium', methods=['POST'])
+def save_consortium():
+    data = request.json
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+
+    new_consortium = Consortium(
+        active_year=data.get('activeYear'),
+        partner_ngos=data.get('partnerNGOs'),
+        international_staff=data.get('internationalStaff'),
+        national_staff=data.get('nationalStaff'),
+        program_plans=data.get('programPlans'),
+        main_donors=data.get('mainDonors'),
+        annual_budget=data.get('annualBudget'),
+        membership_type=data.get('membershipType')
+    )
+
+    try:
+        db.session.add(new_consortium)  
+        db.session.commit()  
+        return jsonify({"message": "Data saved successfully!", "data": data}), 201
+    except Exception as e:
+        db.session.rollback()  
+        return jsonify({"error": str(e)}), 400
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
