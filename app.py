@@ -1,7 +1,7 @@
 
 
 from flask import Flask, request, jsonify, make_response, session
-from models import db, Founder, Agency, User ,UserAction ,BoardDirector,KeyStaff,Consortium ,MemberAccountAdministrator
+from models import db, Founder, Agency, User ,UserAction ,BoardDirector,KeyStaff,Consortium ,MemberAccountAdministrator,ConsortiumApplication
 from config import Config
 from flask_login import  login_required,  current_user,LoginManager
 from flask import request, jsonify, session
@@ -543,6 +543,222 @@ def get_consortia():
 #     db.session.delete(member)
 #     db.session.commit()
 #     return jsonify({'message': 'Member account deleted successfully.'}), 200
+
+
+
+
+
+
+
+
+
+
+
+@app.route('/member-account', methods=['POST'])
+@jwt_required()  # Protect this route with JWT
+def create_member_account():
+    data = request.json
+    current_user_id = get_jwt_identity()  # Get the user ID from the JWT token
+    
+    try:
+        new_member = MemberAccountAdministrator(
+            member_name=data['member_name'],
+            member_email=data['member_email'],
+            agency_registration_date=datetime.fromisoformat(data['agency_registration_date']),
+            agency_registration_number=data.get('agency_registration_number'),  # Use .get() for optional fields
+            hq_name=data['hq_name'],
+            hq_position=data['hq_position'],
+            hq_email=data['hq_email'],
+            hq_address=data['hq_address'],
+            hq_city=data['hq_city'],
+            hq_state=data['hq_state'],
+            hq_country=data['hq_country'],
+            hq_telephone=data['hq_telephone'],
+            hq_telephone2=data.get('hq_telephone2'),  # Optional
+            hq_fax=data.get('hq_fax'),  # Optional
+            regional_same_as_hq=data.get('regional_same_as_hq', False),  # Default to False if not provided
+            regional_name=data.get('regional_name'),  # Optional
+            regional_position=data.get('regional_position'),  # Optional
+            regional_email=data.get('regional_email'),  # Optional
+            regional_address=data.get('regional_address'),  # Optional
+            regional_city=data.get('regional_city'),  # Optional
+            regional_state=data.get('regional_state'),  # Optional
+            regional_country=data.get('regional_country'),  # Optional
+            regional_telephone=data.get('regional_telephone'),  # Optional
+            regional_telephone2=data.get('regional_telephone2'),  # Optional
+            regional_fax=data.get('regional_fax'),  # Optional
+            user_id=current_user_id  # Use the user ID from the JWT token
+        )
+        db.session.add(new_member)
+        db.session.commit()
+        return jsonify(new_member.as_dict()), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+
+
+@app.route('/member-account/<int:id>', methods=['PUT'])
+@jwt_required()  # Protect this route with JWT
+def update_member_account(id):
+    data = request.json
+    member = MemberAccountAdministrator.query.get_or_404(id)
+    
+    current_user_id = get_jwt_identity()  # Get the user ID from the JWT token
+    
+    # Additional check: Only allow updates if the user is the owner
+    if member.user_id != current_user_id:
+        return jsonify({'error': 'Unauthorized access.'}), 403
+
+    member.member_name = data.get('member_name', member.member_name)
+    member.member_email = data.get('member_email', member.member_email)
+    member.agency_registration_date = datetime.fromisoformat(data.get('agency_registration_date', member.agency_registration_date.isoformat()))
+    member.agency_registration_number = data.get('agency_registration_number', member.agency_registration_number)
+    member.hq_name = data.get('hq_name', member.hq_name)
+    member.hq_position = data.get('hq_position', member.hq_position)
+    member.hq_email = data.get('hq_email', member.hq_email)
+    member.hq_address = data.get('hq_address', member.hq_address)
+    member.hq_city = data.get('hq_city', member.hq_city)
+    member.hq_state = data.get('hq_state', member.hq_state)
+    member.hq_country = data.get('hq_country', member.hq_country)
+    member.hq_telephone = data.get('hq_telephone', member.hq_telephone)
+    member.hq_telephone2 = data.get('hq_telephone2', member.hq_telephone2)
+    member.hq_fax = data.get('hq_fax', member.hq_fax)
+
+    member.regional_same_as_hq = data.get('regional_same_as_hq', member.regional_same_as_hq)
+    member.regional_name = data.get('regional_name', member.regional_name)
+    member.regional_position = data.get('regional_position', member.regional_position)
+    member.regional_email = data.get('regional_email', member.regional_email)
+    member.regional_address = data.get('regional_address', member.regional_address)
+    member.regional_city = data.get('regional_city', member.regional_city)
+    member.regional_state = data.get('regional_state', member.regional_state)
+    member.regional_country = data.get('regional_country', member.regional_country)
+    member.regional_telephone = data.get('regional_telephone', member.regional_telephone)
+    member.regional_telephone2 = data.get('regional_telephone2', member.regional_telephone2)
+    member.regional_fax = data.get('regional_fax', member.regional_fax)
+
+    db.session.commit()
+    return jsonify(member.as_dict()), 200
+
+
+
+# API route to get all member account administrators
+@app.route('/member-account', methods=['GET'])
+@jwt_required()  # Protect this route with JWT
+def get_member_accounts():
+    members = MemberAccountAdministrator.query.all()
+    return jsonify([
+        {
+            'id': member.id,
+            'user_id': member.user_id,
+            'member_name': member.member_name,
+            'member_email': member.member_email,
+            'agency_registration_date': member.agency_registration_date.isoformat(),
+            'agency_registration_number': member.agency_registration_number,
+            'hq_name': member.hq_name,
+            'hq_position': member.hq_position,
+            'hq_email': member.hq_email,
+            'hq_address': member.hq_address,
+            'hq_city': member.hq_city,
+            'hq_state': member.hq_state,
+            'hq_country': member.hq_country,
+            'hq_telephone': member.hq_telephone,
+            'hq_telephone2': member.hq_telephone2,
+            'hq_fax': member.hq_fax,
+            'regional_same_as_hq': member.regional_same_as_hq,
+            'regional_name': member.regional_name,
+            'regional_position': member.regional_position,
+            'regional_email': member.regional_email,
+            'regional_address': member.regional_address,
+            'regional_city': member.regional_city,
+            'regional_state': member.regional_state,
+            'regional_country': member.regional_country,
+            'regional_telephone': member.regional_telephone,
+            'regional_telephone2': member.regional_telephone2,
+            'regional_fax': member.regional_fax
+        }
+        for member in members
+    ]), 200
+
+# API route to get a member account by ID
+@app.route('/member-account/<int:id>', methods=['GET'])
+@jwt_required()  # Protect this route with JWT
+def get_member_account(id):
+    member = MemberAccountAdministrator.query.get_or_404(id)
+    return jsonify({
+        'id': member.id,
+        'user_id': member.user_id,
+        'member_name': member.member_name,
+        'member_email': member.member_email,
+        'agency_registration_date': member.agency_registration_date.isoformat(),
+        'agency_registration_number': member.agency_registration_number,
+        'hq_name': member.hq_name,
+        'hq_position': member.hq_position,
+        'hq_email': member.hq_email,
+        'hq_address': member.hq_address,
+        'hq_city': member.hq_city,
+        'hq_state': member.hq_state,
+        'hq_country': member.hq_country,
+        'hq_telephone': member.hq_telephone,
+        'hq_telephone2': member.hq_telephone2,
+        'hq_fax': member.hq_fax,
+        'regional_same_as_hq': member.regional_same_as_hq,
+        'regional_name': member.regional_name,
+        'regional_position': member.regional_position,
+        'regional_email': member.regional_email,
+        'regional_address': member.regional_address,
+        'regional_city': member.regional_city,
+        'regional_state': member.regional_state,
+        'regional_country': member.regional_country,
+        'regional_telephone': member.regional_telephone,
+        'regional_telephone2': member.regional_telephone2,
+        'regional_fax': member.regional_fax
+    }), 200
+
+
+
+
+
+
+@app.route('/agency-details', methods=['POST'])
+@jwt_required()  # Protect this route with JWT
+def create_con():
+    current_user_id = get_jwt_identity()  # Get the current user's ID from the JWT
+    
+    # Get data from the request
+    data = request.get_json()
+    
+    # Validate required fields
+    required_fields = ['full_name', 'email_address', 'additional_accounts', 'email_copy']
+    if not all(field in data for field in required_fields):
+        return jsonify({"msg": "Missing fields"}), 400
+
+    # Check for existing applications with the same email address
+    existing_application = ConsortiumApplication.query.filter_by(email_address=data['email_address']).first()
+    if existing_application:
+        return jsonify({"msg": "A consortium application with this email address already exists."}), 409  # Conflict
+
+    # Create a new consortium application
+    consortium_application = ConsortiumApplication(
+        full_name=data['full_name'],
+        email_address=data['email_address'],
+        additional_accounts=data['additional_accounts'],
+        mailing_list=data.get('mailing_list', None),  # Optional field
+        email_copy=data['email_copy'],
+        documents=data.get('documents', None),  # Optional field
+        user_id=current_user_id  # Associate the application with the current user
+    )
+
+    # Add the application to the session and commit
+    db.session.add(consortium_application)
+    db.session.commit()
+
+    return jsonify(consortium_application.as_dict()), 201
+
+
+
+
+
+
 
 
 

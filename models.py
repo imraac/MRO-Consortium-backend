@@ -28,6 +28,12 @@ class User(UserMixin, db.Model):
     key_staff = db.relationship('KeyStaff', back_populates='user', cascade='all, delete-orphan')
     consortiums = db.relationship('Consortium', back_populates='user', cascade='all, delete-orphan')
     member_accounts = db.relationship('MemberAccountAdministrator', back_populates='user', cascade='all, delete-orphan')
+    consortium_applications = db.relationship('ConsortiumApplication', back_populates='user', cascade='all, delete-orphan')
+   
+
+
+
+
 
     @validates('email')
     def validate_email(self, key, email):
@@ -200,14 +206,13 @@ class Consortium(db.Model):
 
 class MemberAccountAdministrator(db.Model):
     __tablename__ = 'member_account_administrator'
-
     id = db.Column(db.Integer, primary_key=True)
     member_name = db.Column(db.String(100), nullable=False)
     member_email = db.Column(db.String(100), nullable=False)
 
-  
+    # Updated fields from the frontend form
     agency_registration_date = db.Column(db.Date, nullable=False)
-    agency_registration_number = db.Column(db.String(100), nullable=False)
+    agency_registration_number = db.Column(db.String(100), nullable=True)
     hq_name = db.Column(db.String(100), nullable=False)
     hq_position = db.Column(db.String(100), nullable=False)
     hq_email = db.Column(db.String(100), nullable=False)
@@ -215,7 +220,22 @@ class MemberAccountAdministrator(db.Model):
     hq_city = db.Column(db.String(100), nullable=False)
     hq_state = db.Column(db.String(100), nullable=False)
     hq_country = db.Column(db.String(100), nullable=False)
-    hq_zip_code = db.Column(db.String(10), nullable=False)
+    hq_telephone = db.Column(db.String(20), nullable=False)
+    hq_telephone2 = db.Column(db.String(20), nullable=True)
+    hq_fax = db.Column(db.String(20), nullable=True)
+
+    regional_same_as_hq = db.Column(db.Boolean, default=False)
+    regional_name = db.Column(db.String(100), nullable=True)
+    regional_position = db.Column(db.String(100), nullable=True)
+    regional_email = db.Column(db.String(100), nullable=True)
+    regional_address = db.Column(db.String(200), nullable=True)
+    regional_city = db.Column(db.String(100), nullable=True)
+    regional_state = db.Column(db.String(100), nullable=True)
+    regional_country = db.Column(db.String(100), nullable=True)
+    regional_telephone = db.Column(db.String(20), nullable=True)
+    regional_telephone2 = db.Column(db.String(20), nullable=True)
+    regional_fax = db.Column(db.String(20), nullable=True)
+
 
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     user = db.relationship('User', back_populates='member_accounts')
@@ -238,5 +258,63 @@ class MemberAccountAdministrator(db.Model):
             'hq_city': self.hq_city,
             'hq_state': self.hq_state,
             'hq_country': self.hq_country,
-            'hq_zip_code': self.hq_zip_code
+            'hq_telephone': self.hq_telephone,
+            'hq_telephone2': self.hq_telephone2,
+            'hq_fax': self.hq_fax,
+            'regional_same_as_hq': self.regional_same_as_hq,
+            'regional_name': self.regional_name,
+            'regional_position': self.regional_position,
+            'regional_email': self.regional_email,
+            'regional_address': self.regional_address,
+            'regional_city': self.regional_city,
+            'regional_state': self.regional_state,
+            'regional_country': self.regional_country,
+            'regional_telephone': self.regional_telephone,
+            'regional_telephone2': self.regional_telephone2,
+            'regional_fax': self.regional_fax
         }
+
+
+
+
+
+
+
+class ConsortiumApplication(db.Model):
+    __tablename__ = 'consortium_applications'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    full_name = db.Column(db.String(100), nullable=False)
+    email_address = db.Column(db.String(100), nullable=False)
+    additional_accounts = db.Column(db.Integer, nullable=False)
+    mailing_list = db.Column(db.Text, nullable=True)  # You might want to process this as a list of emails
+    email_copy = db.Column(db.String(100), nullable=False)
+    documents = db.Column(db.JSON, nullable=True)  # Store document info, if needed
+    
+    # Foreign key to associate with User
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # This assumes you have a users table
+
+    # Establish a relationship with User
+    user = db.relationship('User', back_populates='consortium_applications')
+    
+    def as_dict(self):
+        return {
+            'id': self.id,
+            'full_name': self.full_name,
+            'email_address': self.email_address,
+            'additional_accounts': self.additional_accounts,
+            'mailing_list': self.mailing_list.splitlines() if self.mailing_list else [],  # Process mailing list
+            'email_copy': self.email_copy,
+            'documents': self.documents,
+            'user_id': self.user_id  # Include the user_id in the dict representation
+        }
+    
+
+
+
+
+
+
+
+
+    
