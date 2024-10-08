@@ -2,11 +2,7 @@
 
 from flask import Flask, request, jsonify, make_response, session
 from models import db, Founder, Agency, User ,UserAction ,BoardDirector,KeyStaff,Consortium ,MemberAccountAdministrator,ConsortiumApplication
-
-
 from flask import Flask, request, jsonify
-from models import db, ContactDetail, Agency, Consortium  # Ensure ContactDetail and Agency are imported
-
 from config import Config
 from flask_login import  login_required,  current_user,LoginManager
 from flask import request, jsonify, session
@@ -120,21 +116,20 @@ class VerifyToken(Resource):
 
 
 @app.route('/agency', methods=['POST'])
-@jwt_required()  # Require authentication
+@jwt_required() 
 def add_agency():
-    # Get the current logged-in user's ID from the JWT token
+   
     current_user_id = get_jwt_identity()  
-    # Optionally log the user ID (can be removed in production)
-    print(f"User ID: {current_user_id}")
+   
 
-    # Get JSON data from the request
+    
     data = request.get_json()
     
     try:
-        # Create a new Agency instance with provided data
+       
         agency = Agency(
             full_name=data['full_name'],
-            acronym=data.get('acronym'),  # optional
+            acronym=data.get('acronym'),  
             description=data['description'],
             mission_statement=data['mission_statement'],
             website=data['website'],
@@ -151,7 +146,7 @@ def add_agency():
         db.session.add(agency)
         db.session.commit()
 
-        # Prepare the response data
+        
         response_data = {
             "id": agency.id,
             "full_name": agency.full_name,
@@ -164,7 +159,7 @@ def add_agency():
             "reason_for_joining": agency.reason_for_joining,
             "willing_to_participate": agency.willing_to_participate,
             "commitment_to_principles": agency.commitment_to_principles,
-            "user_id": agency.user_id  # Storing the user_id in the response
+            "user_id": agency.user_id  
         }
 
         return jsonify({"message": "Agency added successfully!", "agency": response_data}), 201
@@ -250,17 +245,17 @@ def log_user_action():
 
 
 @app.route('/founders', methods=['POST'])
-@jwt_required()  # Change this to JWT-based authentication
+@jwt_required()  
 def create_founder():
-    current_user_id = get_jwt_identity()  # Get the user ID from the JWT token
-    print(f"User ID: {current_user_id}")  # Debug
+    current_user_id = get_jwt_identity()  
+  
     
     data = request.json
     new_founder = Founder(
         name=data['name'],
         contact=data['contact'],
         clan=data['clan'],
-        user_id=current_user_id  # Associate founder with the current logged-in user
+        user_id=current_user_id  
     )
     db.session.add(new_founder)
     db.session.commit()
@@ -278,12 +273,11 @@ def create_founder():
 
 
 @app.route('/founders/<int:id>', methods=['GET', 'PUT', 'DELETE'])
-@jwt_required()  # Ensure that a valid JWT token is required to access this route
+@jwt_required() 
 def handle_founder(id):
-    # Get the current user ID from the JWT token
+    
     current_user_id = get_jwt_identity()
-    print(f"User ID: {current_user_id}")
-
+   
     founder = Founder.query.get_or_404(id)
 
     if request.method == 'GET':
@@ -294,7 +288,7 @@ def handle_founder(id):
         founder.name = data.get('name', founder.name)
         founder.contact = data.get('contact', founder.contact)
         founder.clan = data.get('clan', founder.clan)
-        founder.user_id = current_user_id  # Optionally associate the founder with the current user
+        founder.user_id = current_user_id 
 
         db.session.commit()
         return jsonify(founder.as_dict()), 200
@@ -312,13 +306,12 @@ def handle_founder(id):
 
 
 @app.route('/board-directors', methods=['GET', 'POST'])
-@jwt_required()  # Ensure the user is authenticated before accessing this route
+@jwt_required() 
 def handle_board_directors():
-    current_user_id = get_jwt_identity()  # Get the user ID from the JWT token
-    print(f"User ID: {current_user_id}")  # Log the current user ID for debugging purposes
-
+    current_user_id = get_jwt_identity()  
+    print(f"User ID: {current_user_id}")  
     if current_user_id is None:
-        return jsonify({"msg": "User ID not found in token."}), 401  # Unauthorized if user ID is None
+        return jsonify({"msg": "User ID not found in token."}), 401 
 
     if request.method == 'POST':
         data = request.json
@@ -327,7 +320,7 @@ def handle_board_directors():
             name=data.get('name'),
             contact=data.get('contact'),
             clan=data.get('clan'),
-            user_id=current_user_id  # Set the user_id from the JWT
+            user_id=current_user_id  
         )
 
         db.session.add(new_board_director)
@@ -366,12 +359,12 @@ def handle_board_director(id):
 @jwt_required()
 def handle_key_staff():
     current_user_id = get_jwt_identity()
-    print(f"User ID: {current_user_id}")
+  
 
     if request.method == 'POST':
         data = request.json
         
-        # Validate input data
+        
         if not all(key in data for key in ('name', 'contact', 'clan')):
             return jsonify({"msg": "Missing required fields"}), 400
         
@@ -386,8 +379,8 @@ def handle_key_staff():
             db.session.commit()
             return jsonify(new_staff.as_dict()), 201
         except Exception as e:
-            db.session.rollback()  # Rollback on error
-            return jsonify({"msg": str(e)}), 500  # Return server error
+            db.session.rollback()  
+            return jsonify({"msg": str(e)}), 500  
 
 
 @app.route('/key-staff/<int:id>', methods=['GET', 'PUT', 'DELETE'])
@@ -421,10 +414,10 @@ def handle_key_staff_member(id):
 
 
 @app.route('/consortium', methods=['POST'])
-@jwt_required()  # Protect this route with JWT
+@jwt_required() 
 def create_consortium():
-    current_user_id = get_jwt_identity()  # Get the user ID from the JWT token
-    print(f"User ID: {current_user_id}")
+    current_user_id = get_jwt_identity()  
+
 
     data = request.json
     new_consortium = Consortium(
@@ -436,7 +429,7 @@ def create_consortium():
         main_donors=data['mainDonors'],
         annual_budget=data['annualBudget'],
         membership_type=data['membershipType'],
-        user_id=current_user_id  # Associate with the current user
+        user_id=current_user_id  
     )
     
     db.session.add(new_consortium)
@@ -445,10 +438,10 @@ def create_consortium():
     return jsonify(new_consortium.as_dict()), 201
 
 @app.route('/consortium', methods=['GET'])
-@jwt_required()  # Protect this route with JWT
+@jwt_required()  
 def get_consortia():
-    current_user_id = get_jwt_identity()  # Get the user ID from the JWT token
-    print(f"User ID: {current_user_id}")
+    current_user_id = get_jwt_identity()  
+
 
     consortia = Consortium.query.filter_by(user_id=current_user_id).all()
     return jsonify([consortium.as_dict() for consortium in consortia]), 200
@@ -468,17 +461,17 @@ def get_consortia():
 
 
 @app.route('/member-account', methods=['POST'])
-@jwt_required()  # Protect this route with JWT
+@jwt_required()  
 def create_member_account():
     data = request.json
-    current_user_id = get_jwt_identity()  # Get the user ID from the JWT token
+    current_user_id = get_jwt_identity()  
     
     try:
         new_member = MemberAccountAdministrator(
             member_name=data['member_name'],
             member_email=data['member_email'],
             agency_registration_date=datetime.fromisoformat(data['agency_registration_date']),
-            agency_registration_number=data.get('agency_registration_number'),  # Use .get() for optional fields
+            agency_registration_number=data.get('agency_registration_number'),  
             hq_name=data['hq_name'],
             hq_position=data['hq_position'],
             hq_email=data['hq_email'],
@@ -517,9 +510,8 @@ def update_member_account(id):
     data = request.json
     member = MemberAccountAdministrator.query.get_or_404(id)
     
-    current_user_id = get_jwt_identity()  # Get the user ID from the JWT token
+    current_user_id = get_jwt_identity()  
     
-    # Additional check: Only allow updates if the user is the owner
     if member.user_id != current_user_id:
         return jsonify({'error': 'Unauthorized access.'}), 403
 
@@ -555,9 +547,9 @@ def update_member_account(id):
 
 
 
-# API route to get all member account administrators
+#  route to get all member account administrators
 @app.route('/member-account', methods=['GET'])
-@jwt_required()  # Protect this route with JWT
+@jwt_required()  
 def get_member_accounts():
     members = MemberAccountAdministrator.query.all()
     return jsonify([
@@ -593,9 +585,9 @@ def get_member_accounts():
         for member in members
     ]), 200
 
-# API route to get a member account by ID
+# route to get a member account by ID
 @app.route('/member-account/<int:id>', methods=['GET'])
-@jwt_required()  # Protect this route with JWT
+@jwt_required()  
 def get_member_account(id):
     member = MemberAccountAdministrator.query.get_or_404(id)
     return jsonify({
@@ -634,35 +626,32 @@ def get_member_account(id):
 
 
 @app.route('/agency-details', methods=['POST'])
-@jwt_required()  # Protect this route with JWT
+@jwt_required()  
 def create_con():
-    current_user_id = get_jwt_identity()  # Get the current user's ID from the JWT
-    
-    # Get data from the request
+    current_user_id = get_jwt_identity()  
+   
     data = request.get_json()
     
-    # Validate required fields
+  
     required_fields = ['full_name', 'email_address', 'additional_accounts', 'email_copy']
     if not all(field in data for field in required_fields):
         return jsonify({"msg": "Missing fields"}), 400
 
-    # Check for existing applications with the same email address
+    
     existing_application = ConsortiumApplication.query.filter_by(email_address=data['email_address']).first()
     if existing_application:
-        return jsonify({"msg": "A consortium application with this email address already exists."}), 409  # Conflict
+        return jsonify({"msg": "A consortium application with this email address already exists."}), 409  
 
-    # Create a new consortium application
     consortium_application = ConsortiumApplication(
         full_name=data['full_name'],
         email_address=data['email_address'],
         additional_accounts=data['additional_accounts'],
-        mailing_list=data.get('mailing_list', None),  # Optional field
+        mailing_list=data.get('mailing_list', None), 
         email_copy=data['email_copy'],
-        documents=data.get('documents', None),  # Optional field
-        user_id=current_user_id  # Associate the application with the current user
+        documents=data.get('documents', None),  
+        user_id=current_user_id  
     )
 
-    # Add the application to the session and commit
     db.session.add(consortium_application)
     db.session.commit()
 
@@ -696,34 +685,10 @@ def not_found_error(error):
 @app.errorhandler(500)
 def internal_error(error):
     return jsonify({"error": "Internal server error"}), 500
-=======
-        db.session.rollback()  # Rollback if there's an error
-        return jsonify({"error": str(e)}), 500
+
+    db.session.rollback()  
+    return jsonify({"error": str(e)}), 500
     
-@app.route('/api/consortium', methods=['POST'])
-def save_consortium():
-    data = request.json
-    if not data:
-        return jsonify({"error": "No data provided"}), 400
-
-    new_consortium = Consortium(
-        active_year=data.get('activeYear'),
-        partner_ngos=data.get('partnerNGOs'),
-        international_staff=data.get('internationalStaff'),
-        national_staff=data.get('nationalStaff'),
-        program_plans=data.get('programPlans'),
-        main_donors=data.get('mainDonors'),
-        annual_budget=data.get('annualBudget'),
-        membership_type=data.get('membershipType')
-    )
-
-    try:
-        db.session.add(new_consortium)  
-        db.session.commit()  
-        return jsonify({"message": "Data saved successfully!", "data": data}), 201
-    except Exception as e:
-        db.session.rollback()  
-        return jsonify({"error": str(e)}), 400
 
 
 

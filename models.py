@@ -171,24 +171,16 @@ class KeyStaff(db.Model):
         }
 
 
-
 class Consortium(db.Model):
     __tablename__ = 'consortium'
 
     id = db.Column(db.Integer, primary_key=True)
     active_year = db.Column(db.String(4), nullable=False)
     partner_ngos = db.Column(db.Text, nullable=False)
-
-class Consortium(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    active_year = db.Column(db.String(4), nullable=False)  
-    partner_ngos = db.Column(db.Text, nullable=False)  
-
     international_staff = db.Column(db.Integer, nullable=False)
     national_staff = db.Column(db.Integer, nullable=False)
     program_plans = db.Column(db.Text, nullable=False)
     main_donors = db.Column(db.Text, nullable=False)
-
     annual_budget = db.Column(db.String(20), nullable=False)
     membership_type = db.Column(db.String(50), nullable=False)
 
@@ -322,14 +314,4 @@ class ConsortiumApplication(db.Model):
 
 
 
-
-
-
-    
-
-    annual_budget = db.Column(db.String(20), nullable=False)  
-    membership_type = db.Column(db.String(50), nullable=False)
-
-    def __repr__(self):
-        return f'<Consortium {self.active_year}>'
 
