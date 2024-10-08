@@ -1,7 +1,7 @@
 
 
 from flask import Flask, request, jsonify, make_response, session
-from models import db, Founder, Agency, User ,UserAction ,BoardDirector,KeyStaff,Consortium ,MemberAccountAdministrator,ConsortiumApplication
+from models import db, Founder, Agency, User ,UserAction ,BoardDirector,KeyStaff,Consortium ,MemberAccountAdministrator,ConsortiumApplication ,ConsortiumMemberApplication,DocumentUpload
 from flask import Flask, request, jsonify
 from config import Config
 from flask_login import  login_required,  current_user,LoginManager
@@ -12,7 +12,7 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from flask_cors import CORS
 from datetime import datetime,timedelta
 from flask_migrate import Migrate
-
+import os
 app = Flask(__name__)
 CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
 
@@ -656,6 +656,202 @@ def create_con():
     db.session.commit()
 
     return jsonify(consortium_application.as_dict()), 201
+
+
+
+
+# Route to create a new ConsortiumMemberApplication
+@app.route('/consortium_application', methods=['POST'])
+@jwt_required()  # Ensure that the user is authenticated
+def create_consortium_application():
+    current_user_id = get_jwt_identity()  # Get the current user's ID from the JWT token
+
+    data = request.get_json()
+
+    full_name = data.get('full_name')
+    email_address = data.get('email_address')
+    additional_accounts = data.get('additional_accounts')
+    mailing_list = data.get('mailing_list', '')  # Optional field
+    email_copy = data.get('email_copy')
+
+    # Validate required fields
+    if not full_name or not email_address or not additional_accounts or not email_copy:
+        return jsonify({'error': 'All fields are required unless stated otherwise.'}), 400
+
+    # Validate additional_accounts as a positive integer
+    try:
+        additional_accounts = int(additional_accounts)
+        if additional_accounts <= 0:
+            raise ValueError("Requested number of additional accounts must be a positive number.")
+    except ValueError:
+        return jsonify({'error': 'Requested number of additional accounts must be a valid positive number.'}), 400
+
+    # Create a new ConsortiumMemberApplication instance
+    new_application = ConsortiumMemberApplication(
+        full_name=full_name,
+        email_address=email_address,
+        additional_accounts=additional_accounts,
+        mailing_list=mailing_list,
+        email_copy=email_copy,
+        user_id=current_user_id  # Associate the application with the current user
+    )
+
+    # Add and commit the new application to the database
+    db.session.add(new_application)
+    db.session.commit()
+
+    # Return the response indicating successful creation
+    return jsonify({
+        'message': (
+            'Consortium Member Application successfully created! '
+            'Note: This does not mean you are a member of the Minority Rights Organizations (MRO) Consortium yet. '
+            'Please wait for the admin to process and validate your data. '
+            'If you reached this step, you are halfway done. '
+            'To complete your application, please upload the required documents: '
+            'Registration Certificate, Agency Profile, Audit Report, Signed NGO Consortium Mandate, '
+            'and a Signed ICRC/Red Crescent Code of Conduct.'
+        ),
+        'application': new_application.to_dict()
+    }), 201
+
+
+
+
+# # Route to create a new ConsortiumMemberApplication
+# @app.route('/consortium_application', methods=['POST'])
+# @jwt_required()  # Ensure that the user is authenticated
+# def create_consortium_application():
+#     current_user_id = get_jwt_identity()  # Get the current user's ID from the JWT token
+
+#     data = request.get_json()
+
+#     full_name = data.get('full_name')
+#     email_address = data.get('email_address')
+#     additional_accounts = data.get('additional_accounts')
+#     mailing_list = data.get('mailing_list', '')  # Optional field
+#     email_copy = data.get('email_copy')
+
+#     # Validate required fields
+#     if not full_name or not email_address or not additional_accounts or not email_copy:
+#         return jsonify({'error': 'All fields are required unless stated otherwise.'}), 400
+
+#     # Validate additional_accounts as a positive integer
+#     try:
+#         additional_accounts = int(additional_accounts)
+#         if additional_accounts <= 0:
+#             raise ValueError("Requested number of additional accounts must be a positive number.")
+#     except ValueError:
+#         return jsonify({'error': 'Requested number of additional accounts must be a valid positive number.'}), 400
+
+#     # Create a new ConsortiumMemberApplication instance
+#     new_application = ConsortiumMemberApplication(
+#         full_name=full_name,
+#         email_address=email_address,
+#         additional_accounts=additional_accounts,
+#         mailing_list=mailing_list,
+#         email_copy=email_copy,
+#         user_id=current_user_id  # Associate the application with the current user
+#     )
+
+#     # Add and commit the new application to the database
+#     db.session.add(new_application)
+#     db.session.commit()
+
+#     return jsonify({'message': 'Consortium Member Application successfully created!', 'application': new_application.to_dict()}), 201
+
+
+
+
+# Route to get all ConsortiumMemberApplications for the current user
+@app.route('/consortium_applications', methods=['GET'])
+@jwt_required()  # Ensure that the user is authenticated
+def get_consortium_applications():
+    current_user_id = get_jwt_identity()  # Get the current user's ID from the JWT token
+
+    # Query to get all consortium member applications for the current user
+    applications = ConsortiumMemberApplication.query.filter_by(user_id=current_user_id).all()
+
+    # Convert the application data to a list of dictionaries
+    applications_list = [application.to_dict() for application in applications]
+
+    return jsonify({'applications': applications_list}), 200
+
+
+
+# Route to get all ConsortiumMemberApplications for a specific user by user_id
+@app.route('/consortium_applications/user/<int:user_id>', methods=['GET'])
+@jwt_required()  # Ensure that the user is authenticated
+def get_consortium_applications_by_user(user_id):
+    current_user_id = get_jwt_identity()  # Get the current user's ID from the JWT token
+
+    # Check if the current user is requesting their own data or has the right permissions (if needed)
+    if current_user_id != user_id:
+        return jsonify({'error': 'You are not authorized to view this data.'}), 403
+
+    # Query to get all consortium member applications for the specified user_id
+    applications = ConsortiumMemberApplication.query.filter_by(user_id=user_id).all()
+
+    # Convert the application data to a list of dictionaries
+    applications_list = [application.to_dict() for application in applications]
+
+    return jsonify({'applications': applications_list}), 200
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def save_file_to_directory(file, directory='uploads'):
+    if not os.path.exists(directory):
+        os.makedirs(directory)  # Create the directory if it doesn't exist
+    file_path = os.path.join(directory, file.filename)
+    file.save(file_path)  # Save the file to the specified path
+    return file_path  # Return the file path if needed
+
+
+
+
+@app.route('/upload', methods=['POST'])
+@jwt_required()  # Ensure that the user is authenticated
+def upload_document():
+    current_user_id = get_jwt_identity()  # Get the user ID from the JWT token
+    files = request.files
+
+    # Check if all necessary files are provided
+    required_files = [
+        'registration_certificate',
+        'agency_profile',
+        'audit_report',
+        'ngo_consortium_mandate',
+        'icrc_code_of_conduct'
+    ]
+    
+    for file_key in required_files:
+        if file_key not in files:
+            return jsonify({"error": f"{file_key.replace('_', ' ').capitalize()} is required."}), 400
+
+    # Save each file and create a DocumentUpload instance
+    document_upload = DocumentUpload(
+        user_id=current_user_id,  # Use the current user's ID from the token
+        registration_certificate=save_file_to_directory(files['registration_certificate']),
+        agency_profile=save_file_to_directory(files['agency_profile']),
+        audit_report=save_file_to_directory(files['audit_report']),
+        ngo_consortium_mandate=save_file_to_directory(files['ngo_consortium_mandate']),
+        icrc_code_of_conduct=save_file_to_directory(files['icrc_code_of_conduct'])
+    )
+
+    db.session.add(document_upload)
+    db.session.commit()
+
+    return jsonify({"message": "Documents uploaded successfully", "document_id": document_upload.id}), 201
 
 
 

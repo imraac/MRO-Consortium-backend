@@ -29,8 +29,9 @@ class User(UserMixin, db.Model):
     consortiums = db.relationship('Consortium', back_populates='user', cascade='all, delete-orphan')
     member_accounts = db.relationship('MemberAccountAdministrator', back_populates='user', cascade='all, delete-orphan')
     consortium_applications = db.relationship('ConsortiumApplication', back_populates='user', cascade='all, delete-orphan')
-   
-
+    consortium_member_applications = db.relationship('ConsortiumMemberApplication', back_populates='user', cascade='all, delete-orphan')
+    
+    document_uploads = db.relationship('DocumentUpload', back_populates='user', cascade='all, delete-orphan')
 
 
 
@@ -315,3 +316,77 @@ class ConsortiumApplication(db.Model):
 
 
 
+class ConsortiumMemberApplication(db.Model):
+    __tablename__ = 'consortium_member_applications'
+
+    id = db.Column(db.Integer, primary_key=True)
+    full_name = db.Column(db.String(100), nullable=False)
+    email_address = db.Column(db.String(100), nullable=False)
+    additional_accounts = db.Column(db.Integer, nullable=False)
+    mailing_list = db.Column(db.Text, nullable=True)
+    email_copy = db.Column(db.String(100), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Foreign key to the User model
+
+    # Relationship
+    user = db.relationship('User', back_populates='consortium_member_applications')
+
+    def __repr__(self):
+        return f"<ConsortiumMemberApplication {self.full_name} - {self.email_address}>"
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'full_name': self.full_name,
+            'email_address': self.email_address,
+            'additional_accounts': self.additional_accounts,
+            'mailing_list': self.mailing_list,
+            'email_copy': self.email_copy,
+            'user_id': self.user_id
+        }
+        
+        
+        
+
+class DocumentUpload(db.Model):
+    __tablename__ = 'document_uploads'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Foreign key for User
+    full_name = db.Column(db.String(100), nullable=False)
+    email_address = db.Column(db.String(100), nullable=False)
+    additional_accounts = db.Column(db.Integer, nullable=False)
+    mailing_list = db.Column(db.Text, nullable=False)
+    email_copy = db.Column(db.String(100), nullable=False)
+    
+    registration_certificate = db.Column(db.String(200), nullable=False)  # Path or filename of the uploaded file
+    agency_profile = db.Column(db.String(200), nullable=False)
+    audit_report = db.Column(db.String(200), nullable=False)
+    ngo_consortium_mandate = db.Column(db.String(200), nullable=False)
+    icrc_code_of_conduct = db.Column(db.String(200), nullable=False)
+
+    # Relationship with User model
+    user = db.relationship('User', back_populates='document_uploads')
+
+    def __repr__(self):
+        return f'<DocumentUpload {self.full_name}>'
+
+    def as_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'full_name': self.full_name,
+            'email_address': self.email_address,
+            'additional_accounts': self.additional_accounts,
+            'mailing_list': self.mailing_list,
+            'email_copy': self.email_copy,
+            'registration_certificate': self.registration_certificate,
+            'agency_profile': self.agency_profile,
+            'audit_report': self.audit_report,
+            'ngo_consortium_mandate': self.ngo_consortium_mandate,
+            'icrc_code_of_conduct': self.icrc_code_of_conduct
+        }        
+        
+        
+        
+        
+        
