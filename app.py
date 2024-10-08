@@ -362,31 +362,6 @@ def handle_board_director(id):
         return jsonify({"message": "Board Director deleted"}), 200
 
 
-# @app.route('/key-staff', methods=['GET', 'POST'])
-# @jwt_required()  # Protect this route with JWT authentication
-# def handle_key_staff():
-#     current_user_id = get_jwt_identity()  # Get the user ID from the JWT token
-#     print(f"User ID: {current_user_id}")  # Log the current user ID for debugging purposes
-
-#     if current_user_id is None:
-#         return jsonify({"msg": "User ID not found in token."}), 401  # Unauthorized if user ID is None
-
-#     if request.method == 'POST':
-#         data = request.json
-#         new_staff = KeyStaff(
-#             name=data.get('name'),
-#             contact=data.get('contact'),
-#             clan=data.get('clan'),
-#             user_id=current_user_id  # Use the current user ID from the token
-#         )
-#         db.session.add(new_staff)
-#         db.session.commit()
-#         return jsonify(new_staff.as_dict()), 201
-
-#     elif request.method == 'GET':
-#         staff = KeyStaff.query.all()
-#         return jsonify([s.as_dict() for s in staff]), 200
-
 @app.route('/key-staff', methods=['GET', 'POST'])
 @jwt_required()
 def handle_key_staff():
@@ -481,73 +456,6 @@ def get_consortia():
 
 
 
-
-# @app.route('/member-account', methods=['POST'])
-# def create_member_account():
-#     data = request.json
-#     try:
-#         new_member = MemberAccountAdministrator(
-#             member_name=data['member_name'],
-#             member_email=data['member_email'],
-#             agency_registration_date=datetime.fromisoformat(data['agency_registration_date']),
-#             agency_registration_number=data['agency_registration_number'],
-#             hq_name=data['hq_name'],
-#             hq_position=data['hq_position'],
-#             hq_email=data['hq_email'],
-#             hq_address=data['hq_address'],
-#             hq_city=data['hq_city'],
-#             hq_state=data['hq_state'],
-#             hq_country=data['hq_country'],
-#             hq_zip_code=data['hq_zip_code'],
-#             user_id=data['user_id']
-#         )
-#         db.session.add(new_member)
-#         db.session.commit()
-#         return jsonify(new_member.as_dict()), 201
-#     except Exception as e:
-#         return jsonify({'error': str(e)}), 400
-
-# # API route to get all member account administrators
-# @app.route('/member-account', methods=['GET'])
-# def get_member_accounts():
-#     members = MemberAccountAdministrator.query.all()
-#     return jsonify([member.as_dict() for member in members]), 200
-
-# # API route to get a member account by ID
-# @app.route('/member-account/<int:id>', methods=['GET'])
-# def get_member_account(id):
-#     member = MemberAccountAdministrator.query.get_or_404(id)
-#     return jsonify(member.as_dict()), 200
-
-# # API route to update a member account
-# @app.route('/member-account/<int:id>', methods=['PUT'])
-# def update_member_account(id):
-#     data = request.json
-#     member = MemberAccountAdministrator.query.get_or_404(id)
-
-#     member.member_name = data.get('member_name', member.member_name)
-#     member.member_email = data.get('member_email', member.member_email)
-#     member.agency_registration_date = datetime.fromisoformat(data.get('agency_registration_date', member.agency_registration_date.isoformat()))
-#     member.agency_registration_number = data.get('agency_registration_number', member.agency_registration_number)
-#     member.hq_name = data.get('hq_name', member.hq_name)
-#     member.hq_position = data.get('hq_position', member.hq_position)
-#     member.hq_email = data.get('hq_email', member.hq_email)
-#     member.hq_address = data.get('hq_address', member.hq_address)
-#     member.hq_city = data.get('hq_city', member.hq_city)
-#     member.hq_state = data.get('hq_state', member.hq_state)
-#     member.hq_country = data.get('hq_country', member.hq_country)
-#     member.hq_zip_code = data.get('hq_zip_code', member.hq_zip_code)
-
-#     db.session.commit()
-#     return jsonify(member.as_dict()), 200
-
-# # API route to delete a member account
-# @app.route('/member-account/<int:id>', methods=['DELETE'])
-# def delete_member_account(id):
-#     member = MemberAccountAdministrator.query.get_or_404(id)
-#     db.session.delete(member)
-#     db.session.commit()
-#     return jsonify({'message': 'Member account deleted successfully.'}), 200
 
 
 
