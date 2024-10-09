@@ -12,9 +12,14 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from flask_cors import CORS
 from datetime import datetime,timedelta
 from flask_migrate import Migrate
+import logging
 import os
+from werkzeug.utils import secure_filename
+from flask import current_app
+from file_utils import save_file_to_directory 
 app = Flask(__name__)
 CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
+app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'uploads')  # Set the uploads folder path
 
 app.config.from_object(Config)
 app.secret_key = Config.SECRET_KEY
@@ -658,9 +663,6 @@ def create_con():
     return jsonify(consortium_application.as_dict()), 201
 
 
-
-
-# Route to create a new ConsortiumMemberApplication
 @app.route('/consortium_application', methods=['POST'])
 @jwt_required()  # Ensure that the user is authenticated
 def create_consortium_application():
@@ -687,7 +689,7 @@ def create_consortium_application():
         return jsonify({'error': 'Requested number of additional accounts must be a valid positive number.'}), 400
 
     # Create a new ConsortiumMemberApplication instance
-    new_application = ConsortiumMemberApplication(
+    new_application = ConsortiumApplication(
         full_name=full_name,
         email_address=email_address,
         additional_accounts=additional_accounts,
@@ -696,9 +698,14 @@ def create_consortium_application():
         user_id=current_user_id  # Associate the application with the current user
     )
 
-    # Add and commit the new application to the database
-    db.session.add(new_application)
-    db.session.commit()
+    try:
+        # Add and commit the new application to the database
+        db.session.add(new_application)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()  # Roll back the transaction in case of error
+        print(f"Error occurred while saving to the database: {str(e)}")
+        return jsonify({'error': 'An error occurred while saving to the database.'}), 500
 
     # Return the response indicating successful creation
     return jsonify({
@@ -711,7 +718,7 @@ def create_consortium_application():
             'Registration Certificate, Agency Profile, Audit Report, Signed NGO Consortium Mandate, '
             'and a Signed ICRC/Red Crescent Code of Conduct.'
         ),
-        'application': new_application.to_dict()
+        'application': new_application.as_dict()
     }), 201
 
 
@@ -798,34 +805,12 @@ def get_consortium_applications_by_user(user_id):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-def save_file_to_directory(file, directory='uploads'):
-    if not os.path.exists(directory):
-        os.makedirs(directory)  # Create the directory if it doesn't exist
-    file_path = os.path.join(directory, file.filename)
-    file.save(file_path)  # Save the file to the specified path
-    return file_path  # Return the file path if needed
-
-
-
-
 @app.route('/upload', methods=['POST'])
-@jwt_required()  # Ensure that the user is authenticated
+@jwt_required()
 def upload_document():
-    current_user_id = get_jwt_identity()  # Get the user ID from the JWT token
+    current_user_id = get_jwt_identity()
     files = request.files
 
-    # Check if all necessary files are provided
     required_files = [
         'registration_certificate',
         'agency_profile',
@@ -833,36 +818,73 @@ def upload_document():
         'ngo_consortium_mandate',
         'icrc_code_of_conduct'
     ]
-    
+
+    # Check for missing files
+    missing_files = [file_key for file_key in required_files if file_key not in files]
+    if missing_files:
+        print(f"Error: Missing files - {', '.join(missing_files)}")
+        return jsonify({"error": f"Missing files: {', '.join(missing_files)}"}), 400
+
+    # Debugging: Log received files for verification
+    received_files = {}
     for file_key in required_files:
-        if file_key not in files:
-            return jsonify({"error": f"{file_key.replace('_', ' ').capitalize()} is required."}), 400
+        if file_key in files:
+            if files[file_key].filename == '':
+                print(f"Error: {file_key} has no filename.")
+                return jsonify({"error": f"{file_key} has no filename."}), 400
+            received_files[file_key] = files[file_key]
+            print(f"Received {file_key}: {files[file_key].filename}")
+        else:
+            print(f"Missing {file_key}")
+            
 
-    # Save each file and create a DocumentUpload instance
-    document_upload = DocumentUpload(
-        user_id=current_user_id,  # Use the current user's ID from the token
-        registration_certificate=save_file_to_directory(files['registration_certificate']),
-        agency_profile=save_file_to_directory(files['agency_profile']),
-        audit_report=save_file_to_directory(files['audit_report']),
-        ngo_consortium_mandate=save_file_to_directory(files['ngo_consortium_mandate']),
-        icrc_code_of_conduct=save_file_to_directory(files['icrc_code_of_conduct'])
-    )
+    try:
+        
+        document_upload = DocumentUpload(
+            user_id=current_user_id,
+            registration_certificate=save_file_to_directory(received_files['registration_certificate']),
+            agency_profile=save_file_to_directory(received_files['agency_profile']),
+            audit_report=save_file_to_directory(received_files['audit_report']),
+            ngo_consortium_mandate=save_file_to_directory(received_files['ngo_consortium_mandate']),
+            icrc_code_of_conduct=save_file_to_directory(received_files['icrc_code_of_conduct'])
+        )
 
-    db.session.add(document_upload)
-    db.session.commit()
+        
+        db.session.add(document_upload)
+        db.session.commit()
 
-    return jsonify({"message": "Documents uploaded successfully", "document_id": document_upload.id}), 201
+        return jsonify({"message": "Documents uploaded successfully", "document_id": document_upload.id}), 201
+    except Exception as e:
+        print(f"Error during document upload: {e}")
+        db.session.rollback()  # Rollback the session in case of error
+        return jsonify({"error": "An error occurred while uploading documents."}), 500
+    
+    
+    
+@app.route('/documents', methods=['GET'])
+@jwt_required()
+def get_user_documents():
+    current_user_id = get_jwt_identity()
+    
+    # Query the DocumentUpload table for the current user's documents
+    documents = DocumentUpload.query.filter_by(user_id=current_user_id).all()
 
+    if not documents:
+        return jsonify({"message": "No documents found for this user."}), 404
 
+    # Prepare the response data
+    documents_data = []
+    for doc in documents:
+        documents_data.append({
+            "id": doc.id,
+            "registration_certificate": doc.registration_certificate,
+            "agency_profile": doc.agency_profile,
+            "audit_report": doc.audit_report,
+            "ngo_consortium_mandate": doc.ngo_consortium_mandate,
+            "icrc_code_of_conduct": doc.icrc_code_of_conduct,
+        })
 
-
-
-
-
-
-
-
-
+    return jsonify({"documents": documents_data}), 200
 
 api = Api(app)
 api.add_resource(Users, '/signup')

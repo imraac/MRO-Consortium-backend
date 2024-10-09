@@ -290,7 +290,6 @@ class ConsortiumApplication(db.Model):
     additional_accounts = db.Column(db.Integer, nullable=False)
     mailing_list = db.Column(db.Text, nullable=True)  # You might want to process this as a list of emails
     email_copy = db.Column(db.String(100), nullable=False)
-    documents = db.Column(db.JSON, nullable=True)  # Store document info, if needed
     
     # Foreign key to associate with User
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # This assumes you have a users table
@@ -306,7 +305,6 @@ class ConsortiumApplication(db.Model):
             'additional_accounts': self.additional_accounts,
             'mailing_list': self.mailing_list.splitlines() if self.mailing_list else [],  # Process mailing list
             'email_copy': self.email_copy,
-            'documents': self.documents,
             'user_id': self.user_id  # Include the user_id in the dict representation
         }
     
@@ -347,46 +345,73 @@ class ConsortiumMemberApplication(db.Model):
         
         
 
+# class DocumentUpload(db.Model):
+#     __tablename__ = 'document_uploads'
+
+#     id = db.Column(db.Integer, primary_key=True)
+#     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Foreign key for User
+#     full_name = db.Column(db.String(100), nullable=False)
+#     email_address = db.Column(db.String(100), nullable=False)
+#     additional_accounts = db.Column(db.Integer, nullable=False)
+#     mailing_list = db.Column(db.Text, nullable=False)
+#     email_copy = db.Column(db.String(100), nullable=False)
+    
+#     registration_certificate = db.Column(db.String(200), nullable=False)  # Path or filename of the uploaded file
+#     agency_profile = db.Column(db.String(200), nullable=False)
+#     audit_report = db.Column(db.String(200), nullable=False)
+#     ngo_consortium_mandate = db.Column(db.String(200), nullable=False)
+#     icrc_code_of_conduct = db.Column(db.String(200), nullable=False)
+
+#     # Relationship with User model
+#     user = db.relationship('User', back_populates='document_uploads')
+
+#     def __repr__(self):
+#         return f'<DocumentUpload {self.full_name}>'
+
+#     def as_dict(self):
+#         return {
+#             'id': self.id,
+#             'user_id': self.user_id,
+#             'full_name': self.full_name,
+#             'email_address': self.email_address,
+#             'additional_accounts': self.additional_accounts,
+#             'mailing_list': self.mailing_list,
+#             'email_copy': self.email_copy,
+#             'registration_certificate': self.registration_certificate,
+#             'agency_profile': self.agency_profile,
+#             'audit_report': self.audit_report,
+#             'ngo_consortium_mandate': self.ngo_consortium_mandate,
+#             'icrc_code_of_conduct': self.icrc_code_of_conduct
+#         }        
+        
+        
+        
+        
 class DocumentUpload(db.Model):
     __tablename__ = 'document_uploads'
-
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Foreign key for User
-    full_name = db.Column(db.String(100), nullable=False)
-    email_address = db.Column(db.String(100), nullable=False)
-    additional_accounts = db.Column(db.Integer, nullable=False)
-    mailing_list = db.Column(db.Text, nullable=False)
-    email_copy = db.Column(db.String(100), nullable=False)
     
-    registration_certificate = db.Column(db.String(200), nullable=False)  # Path or filename of the uploaded file
-    agency_profile = db.Column(db.String(200), nullable=False)
-    audit_report = db.Column(db.String(200), nullable=False)
-    ngo_consortium_mandate = db.Column(db.String(200), nullable=False)
-    icrc_code_of_conduct = db.Column(db.String(200), nullable=False)
-
-    # Relationship with User model
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Associate with the User model
+    
+    registration_certificate = db.Column(db.String(255), nullable=False)  # File path for the registration certificate
+    agency_profile = db.Column(db.String(255), nullable=False)  # File path for the agency profile
+    audit_report = db.Column(db.String(255), nullable=False)  # File path for the audit report
+    ngo_consortium_mandate = db.Column(db.String(255), nullable=False)  # File path for the NGO consortium mandate
+    icrc_code_of_conduct = db.Column(db.String(255), nullable=False)  # File path for the ICRC/Red Crescent code of conduct
+    
+    upload_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)  # Timestamp of the upload
+    
+    # Relationship with User
     user = db.relationship('User', back_populates='document_uploads')
-
-    def __repr__(self):
-        return f'<DocumentUpload {self.full_name}>'
-
+    
     def as_dict(self):
         return {
             'id': self.id,
             'user_id': self.user_id,
-            'full_name': self.full_name,
-            'email_address': self.email_address,
-            'additional_accounts': self.additional_accounts,
-            'mailing_list': self.mailing_list,
-            'email_copy': self.email_copy,
             'registration_certificate': self.registration_certificate,
             'agency_profile': self.agency_profile,
             'audit_report': self.audit_report,
             'ngo_consortium_mandate': self.ngo_consortium_mandate,
-            'icrc_code_of_conduct': self.icrc_code_of_conduct
-        }        
-        
-        
-        
-        
-        
+            'icrc_code_of_conduct': self.icrc_code_of_conduct,
+            'upload_date': self.upload_date.strftime('%Y-%m-%d %H:%M:%S')
+        }       
