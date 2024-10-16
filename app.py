@@ -87,9 +87,6 @@ class Users(Resource):
 
 
 #   
-@app.route('/uploads/<filename>')
-def serve_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
 class Login(Resource):
@@ -473,12 +470,6 @@ def get_consortia():
 
 
 
-
-
-
-
-
-
 @app.route('/member-account', methods=['POST'])
 @jwt_required()  
 def create_member_account():
@@ -793,9 +784,6 @@ def get_consortium_applications_by_user(user_id):
 
 
 
-
-
-
 @app.route('/upload', methods=['POST'])
 @jwt_required()
 def upload_document():
@@ -884,14 +872,14 @@ def is_admin(current_user):
 
 
 
-
-    
     
    
 @app.route('/uploads/<filename>', methods=['GET'])
 def get_uploaded_file(filename):
-    uploads_dir = os.path.join(app.root_path, 'uploads')  # Adjust this path based on your setup
+    uploads_dir = os.path.join(app.root_path, 'uploads') 
     return send_from_directory(uploads_dir, filename)
+
+
 
 
 
