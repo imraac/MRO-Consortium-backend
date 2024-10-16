@@ -4,6 +4,7 @@ from flask import Flask, request, jsonify, make_response, session
 from models import db, Founder, Agency, User ,UserAction ,BoardDirector,KeyStaff,Consortium ,MemberAccountAdministrator,ConsortiumApplication ,ConsortiumMemberApplication,DocumentUpload
 from flask import Flask, request, jsonify
 from config import Config
+from flask import send_from_directory
 from flask_login import  login_required,  current_user,LoginManager
 from flask import request, jsonify, session
 from flask_restful import Resource, Api
@@ -71,11 +72,24 @@ class Users(Resource):
             "success": True,
             "message": "User has been created successfully"
         }, 201)
-    
+    def get(self):
+        # Retrieve all users from the database
+        users = User.query.all()
+        
+        # Convert users to a list of dictionaries
+        users_list = [user.to_dict() for user in users]
+
+        return make_response({
+            "users": users_list,
+            "success": True,
+            "message": "Users retrieved successfully"
+        }, 200)
 
 
 #   
-
+@app.route('/uploads/<filename>')
+def serve_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
 class Login(Resource):
@@ -724,48 +738,6 @@ def create_consortium_application():
 
 
 
-# # Route to create a new ConsortiumMemberApplication
-# @app.route('/consortium_application', methods=['POST'])
-# @jwt_required()  # Ensure that the user is authenticated
-# def create_consortium_application():
-#     current_user_id = get_jwt_identity()  # Get the current user's ID from the JWT token
-
-#     data = request.get_json()
-
-#     full_name = data.get('full_name')
-#     email_address = data.get('email_address')
-#     additional_accounts = data.get('additional_accounts')
-#     mailing_list = data.get('mailing_list', '')  # Optional field
-#     email_copy = data.get('email_copy')
-
-#     # Validate required fields
-#     if not full_name or not email_address or not additional_accounts or not email_copy:
-#         return jsonify({'error': 'All fields are required unless stated otherwise.'}), 400
-
-#     # Validate additional_accounts as a positive integer
-#     try:
-#         additional_accounts = int(additional_accounts)
-#         if additional_accounts <= 0:
-#             raise ValueError("Requested number of additional accounts must be a positive number.")
-#     except ValueError:
-#         return jsonify({'error': 'Requested number of additional accounts must be a valid positive number.'}), 400
-
-#     # Create a new ConsortiumMemberApplication instance
-#     new_application = ConsortiumMemberApplication(
-#         full_name=full_name,
-#         email_address=email_address,
-#         additional_accounts=additional_accounts,
-#         mailing_list=mailing_list,
-#         email_copy=email_copy,
-#         user_id=current_user_id  # Associate the application with the current user
-#     )
-
-#     # Add and commit the new application to the database
-#     db.session.add(new_application)
-#     db.session.commit()
-
-#     return jsonify({'message': 'Consortium Member Application successfully created!', 'application': new_application.to_dict()}), 201
-
 
 
 
@@ -805,6 +777,25 @@ def get_consortium_applications_by_user(user_id):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 @app.route('/upload', methods=['POST'])
 @jwt_required()
 def upload_document():
@@ -822,42 +813,122 @@ def upload_document():
     # Check for missing files
     missing_files = [file_key for file_key in required_files if file_key not in files]
     if missing_files:
-        print(f"Error: Missing files - {', '.join(missing_files)}")
         return jsonify({"error": f"Missing files: {', '.join(missing_files)}"}), 400
 
-    # Debugging: Log received files for verification
+    # Validate received files
     received_files = {}
     for file_key in required_files:
-        if file_key in files:
-            if files[file_key].filename == '':
-                print(f"Error: {file_key} has no filename.")
-                return jsonify({"error": f"{file_key} has no filename."}), 400
+        if file_key in files and files[file_key].filename != '':
             received_files[file_key] = files[file_key]
-            print(f"Received {file_key}: {files[file_key].filename}")
         else:
-            print(f"Missing {file_key}")
-            
+            return jsonify({"error": f"{file_key} has no filename or is missing."}), 400
 
     try:
-        
         document_upload = DocumentUpload(
             user_id=current_user_id,
             registration_certificate=save_file_to_directory(received_files['registration_certificate']),
             agency_profile=save_file_to_directory(received_files['agency_profile']),
             audit_report=save_file_to_directory(received_files['audit_report']),
             ngo_consortium_mandate=save_file_to_directory(received_files['ngo_consortium_mandate']),
-            icrc_code_of_conduct=save_file_to_directory(received_files['icrc_code_of_conduct'])
+            icrc_code_of_conduct=save_file_to_directory(received_files['icrc_code_of_conduct']),
+            status='Pending'  # Set initial status to Pending
         )
 
-        
         db.session.add(document_upload)
         db.session.commit()
 
-        return jsonify({"message": "Documents uploaded successfully", "document_id": document_upload.id}), 201
+        return jsonify({"message": "Documents submitted successfully, awaiting admin approval.", "document_id": document_upload.id}), 201
     except Exception as e:
-        print(f"Error during document upload: {e}")
-        db.session.rollback()  # Rollback the session in case of error
+        db.session.rollback()
         return jsonify({"error": "An error occurred while uploading documents."}), 500
+
+@app.route('/admin/documents', methods=['GET'])
+@jwt_required()
+def get_uploaded_documents():
+    current_user_id = get_jwt_identity()
+    
+    # Check if the current user is an admin
+    if not is_admin(current_user_id):
+        return jsonify({"error": "Access forbidden: Admins only."}), 403
+
+    # Fetch all document uploads from the database
+    documents = DocumentUpload.query.all()
+    document_list = []
+
+    for doc in documents:
+        # Ensure each document path is not empty or None
+        document_list.append({
+            "id": doc.id,
+            "user_id": doc.user_id,
+            "username": doc.user.username if doc.user else "Unknown User",
+            "email": doc.user.email if doc.user else "Unknown Email",
+            "registration_certificate": doc.registration_certificate,
+            "agency_profile": doc.agency_profile,
+            "audit_report": doc.audit_report,
+            "ngo_consortium_mandate": doc.ngo_consortium_mandate,
+            "icrc_code_of_conduct": doc.icrc_code_of_conduct,
+            "status": doc.status,
+        })
+
+    if not document_list:
+        return jsonify({"message": "No documents found."}), 404
+
+    return jsonify(document_list), 200
+
+
+def is_admin(current_user):
+    """Check if the current user is an admin."""
+    user = User.query.get(current_user)
+    return user and user.role == 'admin'
+
+
+
+
+
+    
+    
+   
+@app.route('/uploads/<filename>', methods=['GET'])
+def get_uploaded_file(filename):
+    uploads_dir = os.path.join(app.root_path, 'uploads')  # Adjust this path based on your setup
+    return send_from_directory(uploads_dir, filename)
+
+
+
+@app.route('/admin/documents/<int:document_id>/approve', methods=['POST'])
+@jwt_required()
+def approve_document(document_id):
+    current_user = get_jwt_identity()
+    if not is_admin(current_user):
+        return jsonify({"error": "Unauthorized access"}), 403
+
+    # Fetch the document by ID
+    document = DocumentUpload.query.get(document_id)
+    if not document:
+        return jsonify({"error": "Document not found"}), 404
+
+    # Update the document status to approved
+    document.status = 'Approved'
+    db.session.commit()
+    return jsonify({"message": "Document approved successfully."}), 200
+
+@app.route('/admin/documents/<int:document_id>/reject', methods=['POST'])
+@jwt_required()
+def reject_document(document_id):
+    current_user = get_jwt_identity()
+    if not is_admin(current_user):
+        return jsonify({"error": "Unauthorized access"}), 403
+
+    # Fetch the document by ID
+    document = DocumentUpload.query.get(document_id)
+    if not document:
+        return jsonify({"error": "Document not found"}), 404
+
+    # Update the document status to rejected
+    document.status = 'Rejected'
+    db.session.commit()
+    return jsonify({"message": "Document rejected successfully."}), 200
+
     
     
     
@@ -885,6 +956,32 @@ def get_user_documents():
         })
 
     return jsonify({"documents": documents_data}), 200
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 api = Api(app)
 api.add_resource(Users, '/signup')
