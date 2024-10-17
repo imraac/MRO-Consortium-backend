@@ -21,7 +21,7 @@ from file_utils import save_file_to_directory
 app = Flask(__name__)
 CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
 app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'uploads')  # Set the uploads folder path
-
+UPLOAD_DIRECTORY = os.path.join(os.getcwd(), 'uploads')  
 app.config.from_object(Config)
 app.secret_key = Config.SECRET_KEY
 login_manager = LoginManager(app)  
@@ -780,10 +780,6 @@ def get_consortium_applications_by_user(user_id):
 
 
 
-
-
-
-
 @app.route('/upload', methods=['POST'])
 @jwt_required()
 def upload_document():
@@ -873,12 +869,21 @@ def is_admin(current_user):
 
 
     
-   
 @app.route('/uploads/<filename>', methods=['GET'])
 def get_uploaded_file(filename):
-    uploads_dir = os.path.join(app.root_path, 'uploads') 
-    return send_from_directory(uploads_dir, filename)
+    # Use the defined upload directory without redundant path
+    return send_from_directory(UPLOAD_DIRECTORY, filename)
 
+def save_file_to_directory(file):
+    try:
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(UPLOAD_DIRECTORY, filename)
+        file.save(file_path)
+        logging.info(f"File saved to: {file_path}")  # Log the full save path
+        return filename  # Return only the filename
+    except Exception as e:
+        logging.error(f"Error saving file {file.filename}: {e}")
+        raise Exception("Could not save file") from e
 
 
 
