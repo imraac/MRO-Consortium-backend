@@ -1,35 +1,43 @@
+
 # from flask_sqlalchemy import SQLAlchemy
 # from sqlalchemy.orm import validates
 # import re
 # from datetime import datetime
+# from flask_login import UserMixin
 
 # db = SQLAlchemy()
 
-# class User(db.Model):
-#     __tablename__ = 'users'  
-
+# # User model
+# class User(UserMixin, db.Model):
+#     __tablename__ = 'users'
+    
 #     id = db.Column(db.Integer, primary_key=True)
 #     username = db.Column(db.String(80), unique=True, nullable=False)
 #     email = db.Column(db.String(120), unique=True, nullable=False)
 #     password = db.Column(db.String(129), nullable=False)
 #     role = db.Column(db.String(50), default='user')
-#     created_at = db.Column(db.DateTime, default=db.func.now())
-#     agency_id = db.Column(db.Integer, db.ForeignKey('agencies.id'), nullable=True)  # Corrected ForeignKey reference
+#     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+#     agency_id = db.Column(db.Integer, db.ForeignKey('agencies.id'), nullable=True)
 
-#     # Define a relationship to the Agency
-#     agencies = db.relationship('Agency', back_populates='user', foreign_keys=[agency_id])  # Use agency_id instead
+#     # Relationships
+#     actions = db.relationship('UserAction', back_populates='user', cascade='all, delete-orphan')
+#     # Specify the foreign_keys to clarify which column is used for the relationship
+#     agencies = db.relationship('Agency', backref='user', foreign_keys='Agency.user_id', lazy=True)
+#     founders = db.relationship('Founder', back_populates='user', cascade='all, delete-orphan')
+#     board_directors = db.relationship('BoardDirector', back_populates='user', cascade='all, delete-orphan')
+#     key_staff = db.relationship('KeyStaff', back_populates='user', cascade='all, delete-orphan')
+#     consortiums = db.relationship('Consortium', back_populates='user', cascade='all, delete-orphan')
+#     member_accounts = db.relationship('MemberAccountAdministrator', back_populates='user', cascade='all, delete-orphan')
+#     consortium_applications = db.relationship('ConsortiumApplication', back_populates='user', cascade='all, delete-orphan')
+   
 
-#     # Other relationships
-#     contact_details = db.relationship('ContactDetail', back_populates='user')
-#     founders = db.relationship('Founder', back_populates='user')
-#     board_directors = db.relationship('BoardDirector', back_populates='user')
-#     key_staff = db.relationship('KeyStaff', back_populates='user')
-#     consortiums = db.relationship('Consortium', back_populates='user')
-#     member_accounts = db.relationship('MemberAccountAdministrator', back_populates='user')
+
+
+
 
 #     @validates('email')
 #     def validate_email(self, key, email):
-#         regex = r'^\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+#         regex = r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}$'
 #         if not re.match(regex, email):
 #             raise ValueError("Invalid email address")
 #         return email
@@ -43,15 +51,41 @@
 #             "username": self.username,
 #             "email": self.email,
 #             "role": self.role,
-#             "created_at": str(self.created_at),
-#             "agency_id": self.agency_id  # Include agency_id if needed
+#             "created_at": self.created_at.isoformat(),
+#             "agency_id": self.agency_id  
 #         }
+
+
+
+# # UserAction model
+# class UserAction(db.Model):
+#     __tablename__ = 'user_actions'
+
+#     id = db.Column(db.Integer, primary_key=True)
+#     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+#     action = db.Column(db.String(255), nullable=False)
+#     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+#     user = db.relationship('User', back_populates='actions')
+
+#     def __repr__(self):
+#         return f"<UserAction {self.id}: {self.action} by User {self.user_id} at {self.timestamp}>"
+
+#     def as_dict(self):
+#         return {
+#             'id': self.id,
+#             'user_id': self.user_id,
+#             'action': self.action,
+#             'timestamp': self.timestamp.isoformat(),
+#         }
+
 
 
 # class Agency(db.Model):
 #     __tablename__ = 'agencies'
     
 #     id = db.Column(db.Integer, primary_key=True)
+#     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Foreign key to User
 #     full_name = db.Column(db.String(150), nullable=False)
 #     acronym = db.Column(db.String(50), nullable=True)
 #     description = db.Column(db.Text, nullable=False)
@@ -63,10 +97,8 @@
 #     willing_to_participate = db.Column(db.Boolean, nullable=False)
 #     commitment_to_principles = db.Column(db.Boolean, nullable=False)
 
-#     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))  # User foreign key
-
-#     # Define a relationship with User
-#     user = db.relationship('User', back_populates='agencies')  # Corrected to use agencies relationship without foreign_keys
+#     def __repr__(self):
+#         return f"<Agency {self.id}: {self.full_name}>"
 
 #     def as_dict(self):
 #         return {
@@ -80,41 +112,18 @@
 #             'years_operational': self.years_operational,
 #             'reason_for_joining': self.reason_for_joining,
 #             'willing_to_participate': self.willing_to_participate,
-#             'commitment_to_principles': self.commitment_to_principles
+#             'commitment_to_principles': self.commitment_to_principles,
+#             'user_id': self.user_id  # Include user_id if needed in the output
 #         }
 
 
-# # ContactDetail Model
-# class ContactDetail(db.Model):
-#     __tablename__ = 'contact_detail'
 
-#     id = db.Column(db.Integer, primary_key=True)
-#     name = db.Column(db.String(150), nullable=False)
-#     contact = db.Column(db.String(100), nullable=False)
-#     clan = db.Column(db.String(100), nullable=True)
-#     role = db.Column(db.String(50), nullable=False)
-
-#     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-#     user = db.relationship('User', back_populates='contact_details')
-
-#     def as_dict(self):
-#         return {
-#             'id': self.id,
-#             'name': self.name,
-#             'contact': self.contact,
-#             'clan': self.clan,
-#             'role': self.role
-#         }
-
-# # Founder Model
 # class Founder(db.Model):
 #     __tablename__ = 'founder'
-
 #     id = db.Column(db.Integer, primary_key=True)
 #     name = db.Column(db.String(100), nullable=False)
 #     contact = db.Column(db.String(100), nullable=False)
 #     clan = db.Column(db.String(100), nullable=False)
-
 #     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 #     user = db.relationship('User', back_populates='founders')
 
@@ -126,15 +135,12 @@
 #             'clan': self.clan
 #         }
 
-# # BoardDirector Model
 # class BoardDirector(db.Model):
 #     __tablename__ = 'board_director'
-
 #     id = db.Column(db.Integer, primary_key=True)
 #     name = db.Column(db.String(100), nullable=False)
 #     contact = db.Column(db.String(100), nullable=False)
 #     clan = db.Column(db.String(100), nullable=False)
-
 #     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 #     user = db.relationship('User', back_populates='board_directors')
 
@@ -146,15 +152,13 @@
 #             'clan': self.clan
 #         }
 
-# # KeyStaff Model
+
 # class KeyStaff(db.Model):
 #     __tablename__ = 'key_staff'
-
 #     id = db.Column(db.Integer, primary_key=True)
 #     name = db.Column(db.String(100), nullable=False)
 #     contact = db.Column(db.String(100), nullable=False)
 #     clan = db.Column(db.String(100), nullable=False)
-
 #     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 #     user = db.relationship('User', back_populates='key_staff')
 
@@ -166,8 +170,10 @@
 #             'clan': self.clan
 #         }
 
-# # Consortium Model
+
 # class Consortium(db.Model):
+#     __tablename__ = 'consortium'
+
 #     id = db.Column(db.Integer, primary_key=True)
 #     active_year = db.Column(db.String(4), nullable=False)
 #     partner_ngos = db.Column(db.Text, nullable=False)
@@ -181,19 +187,32 @@
 #     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 #     user = db.relationship('User', back_populates='consortiums')
 
+#     def __repr__(self):
+#         return f"<Consortium {self.id}: {self.active_year}>"
+
 #     def as_dict(self):
 #         return {
 #             'id': self.id,
 #             'active_year': self.active_year,
-#             'user_id': self.user_id
+#             'partner_ngos': self.partner_ngos,
+#             'international_staff': self.international_staff,
+#             'national_staff': self.national_staff,
+#             'program_plans': self.program_plans,
+#             'main_donors': self.main_donors,
+#             'annual_budget': self.annual_budget,
+#             'membership_type': self.membership_type
 #         }
 
-# # MemberAccountAdministrator Model
+
 # class MemberAccountAdministrator(db.Model):
-#     __tablename__ = 'member_account_administrator'  
+#     __tablename__ = 'member_account_administrator'
 #     id = db.Column(db.Integer, primary_key=True)
+#     member_name = db.Column(db.String(100), nullable=False)
+#     member_email = db.Column(db.String(100), nullable=False)
+
+#     # Updated fields from the frontend form
 #     agency_registration_date = db.Column(db.Date, nullable=False)
-#     agency_registration_number = db.Column(db.String(100), nullable=False)
+#     agency_registration_number = db.Column(db.String(100), nullable=True)
 #     hq_name = db.Column(db.String(100), nullable=False)
 #     hq_position = db.Column(db.String(100), nullable=False)
 #     hq_email = db.Column(db.String(100), nullable=False)
@@ -202,7 +221,10 @@
 #     hq_state = db.Column(db.String(100), nullable=False)
 #     hq_country = db.Column(db.String(100), nullable=False)
 #     hq_telephone = db.Column(db.String(20), nullable=False)
+#     hq_telephone2 = db.Column(db.String(20), nullable=True)
 #     hq_fax = db.Column(db.String(20), nullable=True)
+
+#     regional_same_as_hq = db.Column(db.Boolean, default=False)
 #     regional_name = db.Column(db.String(100), nullable=True)
 #     regional_position = db.Column(db.String(100), nullable=True)
 #     regional_email = db.Column(db.String(100), nullable=True)
@@ -211,76 +233,189 @@
 #     regional_state = db.Column(db.String(100), nullable=True)
 #     regional_country = db.Column(db.String(100), nullable=True)
 #     regional_telephone = db.Column(db.String(20), nullable=True)
+#     regional_telephone2 = db.Column(db.String(20), nullable=True)
 #     regional_fax = db.Column(db.String(20), nullable=True)
 
 
- 
-#     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Add this line if relevant
-#     user = db.relationship('User', back_populates='member_accounts')  # Create this relationship in the User model as well
-
+#     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+#     user = db.relationship('User', back_populates='member_accounts')
 
 #     def __repr__(self):
-#         return f"<MemberAccountAdministrator {self.hq_name}>"
+#         return f"<MemberAccountAdministrator {self.id}: {self.hq_name}>"
 
-# # Helper function to save a model to the database
-# def save_to_db(model):
-#     db.session.add(model)
-#     db.session.commit()
+#     def as_dict(self):
+#         return {
+#             'id': self.id,
+#             'user_id': self.user_id,
+#             'member_name': self.member_name,
+#             'member_email': self.member_email,
+#             'agency_registration_date': self.agency_registration_date.isoformat(),  
+#             'agency_registration_number': self.agency_registration_number,
+#             'hq_name': self.hq_name,
+#             'hq_position': self.hq_position,
+#             'hq_email': self.hq_email,
+#             'hq_address': self.hq_address,
+#             'hq_city': self.hq_city,
+#             'hq_state': self.hq_state,
+#             'hq_country': self.hq_country,
+#             'hq_telephone': self.hq_telephone,
+#             'hq_telephone2': self.hq_telephone2,
+#             'hq_fax': self.hq_fax,
+#             'regional_same_as_hq': self.regional_same_as_hq,
+#             'regional_name': self.regional_name,
+#             'regional_position': self.regional_position,
+#             'regional_email': self.regional_email,
+#             'regional_address': self.regional_address,
+#             'regional_city': self.regional_city,
+#             'regional_state': self.regional_state,
+#             'regional_country': self.regional_country,
+#             'regional_telephone': self.regional_telephone,
+#             'regional_telephone2': self.regional_telephone2,
+#             'regional_fax': self.regional_fax
+#         }
 
 
-# def create_contact_detail(name, contact, clan, role, user_id):
-#     new_contact_detail = ContactDetail(name=name, contact=contact, clan=clan, role=role, user_id=user_id)
-#     save_to_db(new_contact_detail)
 
-# def create_founder(name, contact, clan, user_id):
-#     new_founder = Founder(name=name, contact=contact, clan=clan, user_id=user_id)
-#     save_to_db(new_founder)
 
-# def create_board_director(name, contact, clan, user_id):
-#     new_board_director = BoardDirector(name=name, contact=contact, clan=clan, user_id=user_id)
-#     save_to_db(new_board_director)
 
-# def create_key_staff(name, contact, clan, user_id):
-#     new_key_staff = KeyStaff(name=name, contact=contact, clan=clan, user_id=user_id)
-#     save_to_db(new_key_staff)
 
-# def create_consortium(data, user_id):
-#     new_consortium = Consortium(user_id=user_id, **data)
-#     save_to_db(new_consortium)
+
+# class ConsortiumApplication(db.Model):
+#     __tablename__ = 'consortium_applications'
+    
+#     id = db.Column(db.Integer, primary_key=True)
+#     full_name = db.Column(db.String(100), nullable=False)
+#     email_address = db.Column(db.String(100), nullable=False)
+#     additional_accounts = db.Column(db.Integer, nullable=False)
+#     mailing_list = db.Column(db.Text, nullable=True)  # You might want to process this as a list of emails
+#     email_copy = db.Column(db.String(100), nullable=False)
+#     documents = db.Column(db.JSON, nullable=True)  # Store document info, if needed
+    
+#     # Foreign key to associate with User
+#     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # This assumes you have a users table
+
+#     # Establish a relationship with User
+#     user = db.relationship('User', back_populates='consortium_applications')
+    
+#     def as_dict(self):
+#         return {
+#             'id': self.id,
+#             'full_name': self.full_name,
+#             'email_address': self.email_address,
+#             'additional_accounts': self.additional_accounts,
+#             'mailing_list': self.mailing_list.splitlines() if self.mailing_list else [],  # Process mailing list
+#             'email_copy': self.email_copy,
+#             'documents': self.documents,
+#             'user_id': self.user_id  # Include the user_id in the dict representation
+#         }
+    
+
+# class ConsortiumMemberApplication(db.Model):
+#     __tablename__ = 'consortium_member_applications'
+
+#     id = db.Column(db.Integer, primary_key=True)
+#     full_name = db.Column(db.String(100), nullable=False)
+#     email_address = db.Column(db.String(100), nullable=False)
+#     additional_accounts = db.Column(db.Integer, nullable=False)
+#     mailing_list = db.Column(db.Text, nullable=True)
+#     email_copy = db.Column(db.String(100), nullable=False)
+#     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Foreign key to the User model
+
+#     # Relationship
+#     user = db.relationship('User', back_populates='consortium_member_applications')
+
+#     def __repr__(self):
+#         return f"<ConsortiumMemberApplication {self.full_name} - {self.email_address}>"
+
+#     def to_dict(self):
+#         return {
+#             'id': self.id,
+#             'full_name': self.full_name,
+#             'email_address': self.email_address,
+#             'additional_accounts': self.additional_accounts,
+#             'mailing_list': self.mailing_list,
+#             'email_copy': self.email_copy,
+#             'user_id': self.user_id
+#         }
+        
+
+# class DocumentUpload(db.Model):
+#     __tablename__ = 'document_uploads'
+    
+#     id = db.Column(db.Integer, primary_key=True)
+#     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Foreign key to associate with the User model
+    
+#     registration_certificate = db.Column(db.String(255), nullable=False)  # File path for the registration certificate
+#     agency_profile = db.Column(db.String(255), nullable=False)  # File path for the agency profile
+#     audit_report = db.Column(db.String(255), nullable=False)  # File path for the audit report
+#     ngo_consortium_mandate = db.Column(db.String(255), nullable=False)  # File path for the NGO consortium mandate
+#     icrc_code_of_conduct = db.Column(db.String(255), nullable=False)  # File path for the ICRC/Red Crescent code of conduct
+    
+#     upload_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)  # Timestamp of the upload
+#     status = db.Column(db.String(50), default='Pending', nullable=False)  # Status of the document ('Pending', 'Approved', 'Rejected')
+
+#     # Relationship with the User model
+#     user = db.relationship('User', back_populates='document_uploads')
+
+#     def as_dict(self):
+#         return {
+#             'id': self.id,
+#             'user_id': self.user_id,
+#             'username': self.user.username if self.user else "Unknown User",  # Include username
+#             'email': self.user.email if self.user else "Unknown Email",  # Include email
+#             'registration_certificate': self.registration_certificate,
+#             'agency_profile': self.agency_profile,
+#             'audit_report': self.audit_report,
+#             'ngo_consortium_mandate': self.ngo_consortium_mandate,
+#             'icrc_code_of_conduct': self.icrc_code_of_conduct,
+#             'upload_date': self.upload_date.strftime('%Y-%m-%d %H:%M:%S'),
+#             'status': self.status
+#         }
+        
+    
+
+
+
 
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import validates
 import re
 from datetime import datetime
+from flask_login import UserMixin
 
 db = SQLAlchemy()
 
-class User(db.Model):
-    __tablename__ = 'users'  
-
+# User model
+class User(UserMixin, db.Model):
+    __tablename__ = 'users'
+    
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(129), nullable=False)
     role = db.Column(db.String(50), default='user')
-    created_at = db.Column(db.DateTime, default=db.func.now())
-    agency_id = db.Column(db.Integer, db.ForeignKey('agencies.id'), nullable=True)  
+    is_approved = db.Column(db.Boolean, default=False)  # Approval status
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    agency_id = db.Column(db.Integer, db.ForeignKey('agencies.id'))
+    is_profile_complete = db.Column(db.Boolean, default=False)
+    
+    # Relationships
+    actions = db.relationship('UserAction', back_populates='user', cascade='all, delete-orphan')
+    agency = db.relationship('Agency', foreign_keys=[agency_id])
 
-    # Define a relationship to the Agency
-    agency = db.relationship('Agency', back_populates='users', foreign_keys=[agency_id])
-
-    # Other relationships
-    contact_details = db.relationship('ContactDetail', back_populates='user')
-    founders = db.relationship('Founder', back_populates='user')
-    board_directors = db.relationship('BoardDirector', back_populates='user')
-    key_staff = db.relationship('KeyStaff', back_populates='user')
-    consortiums = db.relationship('Consortium', back_populates='user')
-    member_accounts = db.relationship('MemberAccountAdministrator', back_populates='user')
+    founders = db.relationship('Founder', back_populates='user', cascade='all, delete-orphan')
+    board_directors = db.relationship('BoardDirector', back_populates='user', cascade='all, delete-orphan')
+    key_staff = db.relationship('KeyStaff', back_populates='user', cascade='all, delete-orphan')
+    consortiums = db.relationship('Consortium', back_populates='user', cascade='all, delete-orphan')
+    member_accounts = db.relationship('MemberAccountAdministrator', back_populates='user', cascade='all, delete-orphan')
+    consortium_applications = db.relationship('ConsortiumApplication', back_populates='user', cascade='all, delete-orphan')
+    consortium_member_applications = db.relationship('ConsortiumMemberApplication', back_populates='user', cascade='all, delete-orphan')
+    document_uploads = db.relationship('DocumentUpload', back_populates='user', cascade='all, delete-orphan')
 
     @validates('email')
     def validate_email(self, key, email):
-        regex = r'^\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        regex = r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}$'
         if not re.match(regex, email):
             raise ValueError("Invalid email address")
         return email
@@ -294,15 +429,42 @@ class User(db.Model):
             "username": self.username,
             "email": self.email,
             "role": self.role,
-            "created_at": str(self.created_at),
-            "agency_id": self.agency_id  
+            "is_approved": self.is_approved,  # Include approval status in dict
+            "created_at": self.created_at.isoformat(),
+            "agency_id": self.agency_id,
+            "is_profile_complete": self.is_profile_complete,
         }
+
+
+# UserAction model
+class UserAction(db.Model):
+    __tablename__ = 'user_actions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    action = db.Column(db.String(255), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', back_populates='actions')
+
+    def __repr__(self):
+        return f"<UserAction {self.id}: {self.action} by User {self.user_id} at {self.timestamp}>"
+
+    def as_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'action': self.action,
+            'timestamp': self.timestamp.isoformat(),
+        }
+
 
 
 class Agency(db.Model):
     __tablename__ = 'agencies'
     
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Foreign key to User
     full_name = db.Column(db.String(150), nullable=False)
     acronym = db.Column(db.String(50), nullable=True)
     description = db.Column(db.Text, nullable=False)
@@ -314,7 +476,8 @@ class Agency(db.Model):
     willing_to_participate = db.Column(db.Boolean, nullable=False)
     commitment_to_principles = db.Column(db.Boolean, nullable=False)
 
-    users = db.relationship('User', back_populates='agency')  # Use 'users' to denote multiple User instances
+    def __repr__(self):
+        return f"<Agency {self.id}: {self.full_name}>"
 
     def as_dict(self):
         return {
@@ -328,41 +491,18 @@ class Agency(db.Model):
             'years_operational': self.years_operational,
             'reason_for_joining': self.reason_for_joining,
             'willing_to_participate': self.willing_to_participate,
-            'commitment_to_principles': self.commitment_to_principles
+            'commitment_to_principles': self.commitment_to_principles,
+            'user_id': self.user_id  # Include user_id if needed in the output
         }
 
 
-# ContactDetail Model
-class ContactDetail(db.Model):
-    __tablename__ = 'contact_detail'
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(150), nullable=False)
-    contact = db.Column(db.String(100), nullable=False)
-    clan = db.Column(db.String(100), nullable=True)
-    role = db.Column(db.String(50), nullable=False)
-
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    user = db.relationship('User', back_populates='contact_details')
-
-    def as_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'contact': self.contact,
-            'clan': self.clan,
-            'role': self.role
-        }
-
-# Founder Model
 class Founder(db.Model):
     __tablename__ = 'founder'
-
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     contact = db.Column(db.String(100), nullable=False)
     clan = db.Column(db.String(100), nullable=False)
-
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     user = db.relationship('User', back_populates='founders')
 
@@ -374,15 +514,12 @@ class Founder(db.Model):
             'clan': self.clan
         }
 
-# BoardDirector Model
 class BoardDirector(db.Model):
     __tablename__ = 'board_director'
-
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     contact = db.Column(db.String(100), nullable=False)
     clan = db.Column(db.String(100), nullable=False)
-
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     user = db.relationship('User', back_populates='board_directors')
 
@@ -394,15 +531,13 @@ class BoardDirector(db.Model):
             'clan': self.clan
         }
 
-# KeyStaff Model
+
 class KeyStaff(db.Model):
     __tablename__ = 'key_staff'
-
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     contact = db.Column(db.String(100), nullable=False)
     clan = db.Column(db.String(100), nullable=False)
-
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     user = db.relationship('User', back_populates='key_staff')
 
@@ -414,7 +549,7 @@ class KeyStaff(db.Model):
             'clan': self.clan
         }
 
-# Consortium Model
+
 class Consortium(db.Model):
     __tablename__ = 'consortium'
 
@@ -431,19 +566,32 @@ class Consortium(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     user = db.relationship('User', back_populates='consortiums')
 
+    def __repr__(self):
+        return f"<Consortium {self.id}: {self.active_year}>"
+
     def as_dict(self):
         return {
             'id': self.id,
             'active_year': self.active_year,
-            'user_id': self.user_id
+            'partner_ngos': self.partner_ngos,
+            'international_staff': self.international_staff,
+            'national_staff': self.national_staff,
+            'program_plans': self.program_plans,
+            'main_donors': self.main_donors,
+            'annual_budget': self.annual_budget,
+            'membership_type': self.membership_type
         }
 
-# MemberAccountAdministrator Model
+
 class MemberAccountAdministrator(db.Model):
-    __tablename__ = 'member_account_administrator'  
+    __tablename__ = 'member_account_administrator'
     id = db.Column(db.Integer, primary_key=True)
+    member_name = db.Column(db.String(100), nullable=False)
+    member_email = db.Column(db.String(100), nullable=False)
+
+    # Updated fields from the frontend form
     agency_registration_date = db.Column(db.Date, nullable=False)
-    agency_registration_number = db.Column(db.String(100), nullable=False)
+    agency_registration_number = db.Column(db.String(100), nullable=True)
     hq_name = db.Column(db.String(100), nullable=False)
     hq_position = db.Column(db.String(100), nullable=False)
     hq_email = db.Column(db.String(100), nullable=False)
@@ -452,7 +600,10 @@ class MemberAccountAdministrator(db.Model):
     hq_state = db.Column(db.String(100), nullable=False)
     hq_country = db.Column(db.String(100), nullable=False)
     hq_telephone = db.Column(db.String(20), nullable=False)
+    hq_telephone2 = db.Column(db.String(20), nullable=True)
     hq_fax = db.Column(db.String(20), nullable=True)
+
+    regional_same_as_hq = db.Column(db.Boolean, default=False)
     regional_name = db.Column(db.String(100), nullable=True)
     regional_position = db.Column(db.String(100), nullable=True)
     regional_email = db.Column(db.String(100), nullable=True)
@@ -461,15 +612,23 @@ class MemberAccountAdministrator(db.Model):
     regional_state = db.Column(db.String(100), nullable=True)
     regional_country = db.Column(db.String(100), nullable=True)
     regional_telephone = db.Column(db.String(20), nullable=True)
+    regional_telephone2 = db.Column(db.String(20), nullable=True)
     regional_fax = db.Column(db.String(20), nullable=True)
+
 
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     user = db.relationship('User', back_populates='member_accounts')
 
+    def __repr__(self):
+        return f"<MemberAccountAdministrator {self.id}: {self.hq_name}>"
+
     def as_dict(self):
         return {
             'id': self.id,
-            'agency_registration_date': str(self.agency_registration_date),
+            'user_id': self.user_id,
+            'member_name': self.member_name,
+            'member_email': self.member_email,
+            'agency_registration_date': self.agency_registration_date.isoformat(),  
             'agency_registration_number': self.agency_registration_number,
             'hq_name': self.hq_name,
             'hq_position': self.hq_position,
@@ -479,7 +638,9 @@ class MemberAccountAdministrator(db.Model):
             'hq_state': self.hq_state,
             'hq_country': self.hq_country,
             'hq_telephone': self.hq_telephone,
+            'hq_telephone2': self.hq_telephone2,
             'hq_fax': self.hq_fax,
+            'regional_same_as_hq': self.regional_same_as_hq,
             'regional_name': self.regional_name,
             'regional_position': self.regional_position,
             'regional_email': self.regional_email,
@@ -488,5 +649,153 @@ class MemberAccountAdministrator(db.Model):
             'regional_state': self.regional_state,
             'regional_country': self.regional_country,
             'regional_telephone': self.regional_telephone,
+            'regional_telephone2': self.regional_telephone2,
             'regional_fax': self.regional_fax
+        }
+
+
+
+
+
+
+
+class ConsortiumApplication(db.Model):
+    __tablename__ = 'consortium_applications'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    full_name = db.Column(db.String(100), nullable=False)
+    email_address = db.Column(db.String(100), nullable=False)
+    additional_accounts = db.Column(db.Integer, nullable=False)
+    mailing_list = db.Column(db.Text, nullable=True)  # You might want to process this as a list of emails
+    email_copy = db.Column(db.String(100), nullable=False)
+    
+    # Foreign key to associate with User
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # This assumes you have a users table
+
+    # Establish a relationship with User
+    user = db.relationship('User', back_populates='consortium_applications')
+    
+    def as_dict(self):
+        return {
+            'id': self.id,
+            'full_name': self.full_name,
+            'email_address': self.email_address,
+            'additional_accounts': self.additional_accounts,
+            'mailing_list': self.mailing_list.splitlines() if self.mailing_list else [],  # Process mailing list
+            'email_copy': self.email_copy,
+            'user_id': self.user_id  # Include the user_id in the dict representation
+        }
+    
+
+
+
+
+
+
+class ConsortiumMemberApplication(db.Model):
+    __tablename__ = 'consortium_member_applications'
+
+    id = db.Column(db.Integer, primary_key=True)
+    full_name = db.Column(db.String(100), nullable=False)
+    email_address = db.Column(db.String(100), nullable=False)
+    additional_accounts = db.Column(db.Integer, nullable=False)
+    mailing_list = db.Column(db.Text, nullable=True)
+    email_copy = db.Column(db.String(100), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Foreign key to the User model
+
+    # Relationship
+    user = db.relationship('User', back_populates='consortium_member_applications')
+
+    def __repr__(self):
+        return f"<ConsortiumMemberApplication {self.full_name} - {self.email_address}>"
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'full_name': self.full_name,
+            'email_address': self.email_address,
+            'additional_accounts': self.additional_accounts,
+            'mailing_list': self.mailing_list,
+            'email_copy': self.email_copy,
+            'user_id': self.user_id
+        }
+        
+        
+        
+
+# class DocumentUpload(db.Model):
+#     __tablename__ = 'document_uploads'
+
+#     id = db.Column(db.Integer, primary_key=True)
+#     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Foreign key for User
+#     full_name = db.Column(db.String(100), nullable=False)
+#     email_address = db.Column(db.String(100), nullable=False)
+#     additional_accounts = db.Column(db.Integer, nullable=False)
+#     mailing_list = db.Column(db.Text, nullable=False)
+#     email_copy = db.Column(db.String(100), nullable=False)
+    
+#     registration_certificate = db.Column(db.String(200), nullable=False)  # Path or filename of the uploaded file
+#     agency_profile = db.Column(db.String(200), nullable=False)
+#     audit_report = db.Column(db.String(200), nullable=False)
+#     ngo_consortium_mandate = db.Column(db.String(200), nullable=False)
+#     icrc_code_of_conduct = db.Column(db.String(200), nullable=False)
+
+#     # Relationship with User model
+#     user = db.relationship('User', back_populates='document_uploads')
+
+#     def __repr__(self):
+#         return f'<DocumentUpload {self.full_name}>'
+
+#     def as_dict(self):
+#         return {
+#             'id': self.id,
+#             'user_id': self.user_id,
+#             'full_name': self.full_name,
+#             'email_address': self.email_address,
+#             'additional_accounts': self.additional_accounts,
+#             'mailing_list': self.mailing_list,
+#             'email_copy': self.email_copy,
+#             'registration_certificate': self.registration_certificate,
+#             'agency_profile': self.agency_profile,
+#             'audit_report': self.audit_report,
+#             'ngo_consortium_mandate': self.ngo_consortium_mandate,
+#             'icrc_code_of_conduct': self.icrc_code_of_conduct
+#         }        
+        
+        
+        
+        
+
+
+class DocumentUpload(db.Model):
+    __tablename__ = 'document_uploads'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Foreign key to associate with the User model
+    
+    registration_certificate = db.Column(db.String(255), nullable=False)  # File path for the registration certificate
+    agency_profile = db.Column(db.String(255), nullable=False)  # File path for the agency profile
+    audit_report = db.Column(db.String(255), nullable=False)  # File path for the audit report
+    ngo_consortium_mandate = db.Column(db.String(255), nullable=False)  # File path for the NGO consortium mandate
+    icrc_code_of_conduct = db.Column(db.String(255), nullable=False)  # File path for the ICRC/Red Crescent code of conduct
+    
+    upload_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)  # Timestamp of the upload
+    status = db.Column(db.String(50), default='Pending', nullable=False)  # Status of the document ('Pending', 'Approved', 'Rejected')
+
+    # Relationship with the User model
+    user = db.relationship('User', back_populates='document_uploads')
+
+    def as_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'username': self.user.username if self.user else "Unknown User",  # Include username
+            'email': self.user.email if self.user else "Unknown Email",  # Include email
+            'registration_certificate': self.registration_certificate,
+            'agency_profile': self.agency_profile,
+            'audit_report': self.audit_report,
+            'ngo_consortium_mandate': self.ngo_consortium_mandate,
+            'icrc_code_of_conduct': self.icrc_code_of_conduct,
+            'upload_date': self.upload_date.strftime('%Y-%m-%d %H:%M:%S'),
+            'status': self.status
         }
