@@ -85,8 +85,39 @@ class Users(Resource):
             "message": "Users retrieved successfully"
         }, 200)
 
+@app.route('/users/list', methods=['GET'])
+def get_users():
+    users = User.query.all()
+    users_list = [user.to_dict() for user in users]
 
-#   
+    return jsonify({
+        "users": users_list,
+        "success": True,
+        "message": "Users retrieved successfully"
+    })
+
+
+# class Login(Resource):
+#     def post(self):
+#         data = request.get_json()
+#         email = data.get('email')
+#         password = data.get('password')
+#         user = User.query.filter_by(email=email).first()
+
+#         if user and bcrypt.check_password_hash(user.password, password):
+#             access_token = create_access_token(identity=user.id)
+#             session['user_id'] = user.id 
+#             return make_response({
+#                 "user": user.to_dict(),
+#                 "access_token": access_token,
+#                 "success": True,
+#                 "message": "Login successful"
+#             }, 200)
+#         return make_response({"message": "Invalid credentials"}, 401)
+
+# # 
+
+
 
 
 class Login(Resource):
@@ -99,16 +130,25 @@ class Login(Resource):
         if user and bcrypt.check_password_hash(user.password, password):
             access_token = create_access_token(identity=user.id)
             session['user_id'] = user.id 
+
+            # Fetch the document status for the user
+            document = DocumentUpload.query.filter_by(user_id=user.id).first()
+            document_status = document.status if document else "Pending"
+
             return make_response({
-                "user": user.to_dict(),
+                "user": {
+                    "id": user.id,
+                    "email": user.email,
+                    "role": user.role,
+                    "is_approved": user.is_approved,
+                    "document_status": document_status
+                },
                 "access_token": access_token,
                 "success": True,
                 "message": "Login successful"
             }, 200)
+        
         return make_response({"message": "Invalid credentials"}, 401)
-
-# 
-
 
 class Logout(Resource):
     @jwt_required()
@@ -888,6 +928,46 @@ def save_file_to_directory(file):
 
 
 
+# @app.route('/admin/documents/<int:document_id>/approve', methods=['POST'])
+# @jwt_required()
+# def approve_document(document_id):
+#     current_user = get_jwt_identity()
+#     if not is_admin(current_user):
+#         return jsonify({"error": "Unauthorized access"}), 403
+
+#     # Fetch the document by ID
+#     document = DocumentUpload.query.get(document_id)
+#     if not document:
+#         return jsonify({"error": "Document not found"}), 404
+
+#     # Update the document status to approved
+#     document.status = 'Approved'
+#     db.session.commit()
+#     return jsonify({"message": "Document approved successfully."}), 200
+
+# @app.route('/admin/documents/<int:document_id>/reject', methods=['POST'])
+# @jwt_required()
+# def reject_document(document_id):
+#     current_user = get_jwt_identity()
+#     if not is_admin(current_user):
+#         return jsonify({"error": "Unauthorized access"}), 403
+
+#     # Fetch the document by ID
+#     document = DocumentUpload.query.get(document_id)
+#     if not document:
+#         return jsonify({"error": "Document not found"}), 404
+
+#     # Update the document status to rejected
+#     document.status = 'Rejected'
+#     db.session.commit()
+#     return jsonify({"message": "Document rejected successfully."}), 200
+
+
+
+
+
+
+
 @app.route('/admin/documents/<int:document_id>/approve', methods=['POST'])
 @jwt_required()
 def approve_document(document_id):
@@ -902,8 +982,14 @@ def approve_document(document_id):
 
     # Update the document status to approved
     document.status = 'Approved'
+
+    # Approve the user associated with the document
+    user = document.user  # Assuming DocumentUpload has a relationship with User
+    if user:
+        user.is_approved = True
+
     db.session.commit()
-    return jsonify({"message": "Document approved successfully."}), 200
+    return jsonify({"message": "Document approved successfully, and user status updated."}), 200
 
 @app.route('/admin/documents/<int:document_id>/reject', methods=['POST'])
 @jwt_required()
@@ -919,8 +1005,14 @@ def reject_document(document_id):
 
     # Update the document status to rejected
     document.status = 'Rejected'
+
+    # Reject the user associated with the document
+    user = document.user  # Assuming DocumentUpload has a relationship with User
+    if user:
+        user.is_approved = False
+
     db.session.commit()
-    return jsonify({"message": "Document rejected successfully."}), 200
+    return jsonify({"message": "Document rejected successfully, and user status updated."}), 200
 
     
     
@@ -951,10 +1043,33 @@ def get_user_documents():
     return jsonify({"documents": documents_data}), 200
 
 
+@app.route('/profile', methods=['GET'])
+@jwt_required()
+def get_profile():
+    current_user_id = get_jwt_identity()
 
+    # Fetch agency information for the current user
+    agency = Agency.query.filter_by(user_id=current_user_id).first()
+    if not agency:
+        return jsonify({"agency": None}), 404  # No agency found
 
+    # Fetch member accounts for the current user
+    members = MemberAccountAdministrator.query.filter_by(user_id=current_user_id).all()
+    members_data = [member.as_dict() for member in members]  # Assuming as_dict method exists
 
+    # Combine agency and members data
+    profile_data = {
+        "agency": {
+            "membershipStatus": agency.membershipStatus,
+            "membershipExpiration": agency.membershipExpiration,
+            "mission_statement": agency.mission_statement,  # Changed here
+            "website": agency.website,  # Changed here
+            # Add other fields...
+        },
+        "members": members_data,
+    }
 
+    return jsonify(profile_data), 200
 
 
 
