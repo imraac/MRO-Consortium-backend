@@ -227,6 +227,84 @@ def add_agency():
 
 
 
+
+
+@app.route('/agency', methods=['GET'])
+@jwt_required()
+def get_agencies():
+    try:
+        # Get the ID of the current logged-in user
+        current_user_id = get_jwt_identity()
+
+        # Query all agencies associated with the current user
+        agencies = Agency.query.filter_by(user_id=current_user_id).all()
+
+        # Convert each agency to a dictionary format
+        agencies_list = [{
+            "id": agency.id,
+            "full_name": agency.full_name,
+            "acronym": agency.acronym,
+            "description": agency.description,
+            "mission_statement": agency.mission_statement,
+            "website": agency.website,
+            "is_ngo": agency.is_ngo,
+            "years_operational": agency.years_operational,
+            "reason_for_joining": agency.reason_for_joining,
+            "willing_to_participate": agency.willing_to_participate,
+            "commitment_to_principles": agency.commitment_to_principles,
+            "user_id": agency.user_id
+        } for agency in agencies]
+
+        return jsonify({
+            "message": "Agencies retrieved successfully!",
+            "agencies": agencies_list
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
+
+
+
+# agency for all users in the system not just specific
+
+
+@app.route('/agencies', methods=['GET'])
+@jwt_required()
+def get_all_agencies():
+    try:
+        # Retrieve all agencies from the database
+        agencies = Agency.query.all()
+
+        agencies_list = [{
+            "id": agency.id,
+            "full_name": agency.full_name,
+            "acronym": agency.acronym,
+            "description": agency.description,
+            "mission_statement": agency.mission_statement,
+            "website": agency.website,
+            "is_ngo": agency.is_ngo,
+            "years_operational": agency.years_operational,
+            "reason_for_joining": agency.reason_for_joining,
+            "willing_to_participate": agency.willing_to_participate,
+            "commitment_to_principles": agency.commitment_to_principles,
+            "user_id": agency.user_id
+        } for agency in agencies]
+
+        return jsonify({
+            "message": "All agencies retrieved successfully!",
+            "agencies": agencies_list
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
+
+
 @app.route('/agency/<int:agency_id>', methods=['DELETE'])
 @jwt_required()  
 def delete_agency(agency_id):
@@ -634,6 +712,12 @@ def get_member_accounts():
         }
         for member in members
     ]), 200
+
+
+# consortium-registration
+
+
+
 
 # route to get a member account by ID
 @app.route('/member-account/<int:id>', methods=['GET'])
@@ -1043,33 +1127,33 @@ def get_user_documents():
     return jsonify({"documents": documents_data}), 200
 
 
-@app.route('/profile', methods=['GET'])
-@jwt_required()
-def get_profile():
-    current_user_id = get_jwt_identity()
+# @app.route('/profile', methods=['GET'])
+# @jwt_required()
+# def get_profile():
+#     current_user_id = get_jwt_identity()
 
-    # Fetch agency information for the current user
-    agency = Agency.query.filter_by(user_id=current_user_id).first()
-    if not agency:
-        return jsonify({"agency": None}), 404  # No agency found
+#     # Fetch agency information for the current user
+#     agency = Agency.query.filter_by(user_id=current_user_id).first()
+#     if not agency:
+#         return jsonify({"agency": None}), 404  # No agency found
 
-    # Fetch member accounts for the current user
-    members = MemberAccountAdministrator.query.filter_by(user_id=current_user_id).all()
-    members_data = [member.as_dict() for member in members]  # Assuming as_dict method exists
+#     # Fetch member accounts for the current user
+#     members = MemberAccountAdministrator.query.filter_by(user_id=current_user_id).all()
+#     members_data = [member.as_dict() for member in members]  # Assuming as_dict method exists
 
-    # Combine agency and members data
-    profile_data = {
-        "agency": {
-            "membershipStatus": agency.membershipStatus,
-            "membershipExpiration": agency.membershipExpiration,
-            "mission_statement": agency.mission_statement,  # Changed here
-            "website": agency.website,  # Changed here
-            # Add other fields...
-        },
-        "members": members_data,
-    }
+#     # Combine agency and members data
+#     profile_data = {
+#         "agency": {
+#             "membershipStatus": agency.membershipStatus,
+#             "membershipExpiration": agency.membershipExpiration,
+#             "mission_statement": agency.mission_statement,  # Changed here
+#             "website": agency.website,  # Changed here
+#             # Add other fields...
+#         },
+#         "members": members_data,
+#     }
 
-    return jsonify(profile_data), 200
+#     return jsonify(profile_data), 200
 
 
 
