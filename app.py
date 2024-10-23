@@ -3,10 +3,12 @@
 from flask import Flask, request, jsonify, make_response, session
 from models import db, Founder, Agency, User ,UserAction ,BoardDirector,KeyStaff,Consortium ,MemberAccountAdministrator,ConsortiumApplication ,ConsortiumMemberApplication,DocumentUpload
 from flask import Flask, request, jsonify
+import jwt
+from flask_jwt_extended import get_jwt
+
 from config import Config
 from flask import send_from_directory
 from flask_login import  login_required,  current_user,LoginManager
-from flask import request, jsonify, session
 from flask_restful import Resource, Api
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
@@ -18,10 +20,16 @@ import os
 from werkzeug.utils import secure_filename
 from flask import current_app
 from file_utils import save_file_to_directory 
+
+
+
+
 app = Flask(__name__)
 CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
-app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'uploads')  # Set the uploads folder path
+app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'uploads')  
 UPLOAD_DIRECTORY = os.path.join(os.getcwd(), 'uploads')  
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 16 MB
+
 app.config.from_object(Config)
 app.secret_key = Config.SECRET_KEY
 login_manager = LoginManager(app)  
@@ -85,6 +93,9 @@ class Users(Resource):
             "message": "Users retrieved successfully"
         }, 200)
 
+
+
+
 @app.route('/users/list', methods=['GET'])
 def get_users():
     users = User.query.all()
@@ -97,25 +108,6 @@ def get_users():
     })
 
 
-# class Login(Resource):
-#     def post(self):
-#         data = request.get_json()
-#         email = data.get('email')
-#         password = data.get('password')
-#         user = User.query.filter_by(email=email).first()
-
-#         if user and bcrypt.check_password_hash(user.password, password):
-#             access_token = create_access_token(identity=user.id)
-#             session['user_id'] = user.id 
-#             return make_response({
-#                 "user": user.to_dict(),
-#                 "access_token": access_token,
-#                 "success": True,
-#                 "message": "Login successful"
-#             }, 200)
-#         return make_response({"message": "Invalid credentials"}, 401)
-
-# # 
 
 
 
@@ -150,11 +142,36 @@ class Login(Resource):
         
         return make_response({"message": "Invalid credentials"}, 401)
 
+
+
+
+blacklist = set()
+
 class Logout(Resource):
     @jwt_required()
     def post(self):
-        session.pop('user_id', None)  
-        return jsonify({"message": "Logout successful"}), 200
+        try:
+            # Get the JWT's unique identifier (jti)
+            jti = get_jwt()["jti"]
+            
+            # Add the token to the blacklist
+            blacklist.add(jti)
+            
+            # Clear session or any additional user data
+            session.pop('user_id', None)
+            
+            # Return a properly formatted JSON response
+            return {"message": "Logout successful"}, 200
+        except Exception as e:
+            # Ensure that any errors are returned as JSON
+            return {"message": f"An error occurred: {str(e)}"}, 500
+
+
+@jwt.token_in_blocklist_loader
+def check_if_token_in_blacklist(jwt_header, jwt_payload):
+    return jwt_payload['jti'] in blacklist
+
+
 
 # Resource to verify JWT token
 class VerifyToken(Resource):
@@ -948,7 +965,7 @@ def upload_document():
         return jsonify({"message": "Documents submitted successfully, awaiting admin approval.", "document_id": document_upload.id}), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": "An error occurred while uploading documents."}), 500
+        return jsonify({"error": "waiting for admin approval please log out and login again to check your status."}), 500
 
 @app.route('/admin/documents', methods=['GET'])
 @jwt_required()
@@ -1008,43 +1025,6 @@ def save_file_to_directory(file):
     except Exception as e:
         logging.error(f"Error saving file {file.filename}: {e}")
         raise Exception("Could not save file") from e
-
-
-
-
-# @app.route('/admin/documents/<int:document_id>/approve', methods=['POST'])
-# @jwt_required()
-# def approve_document(document_id):
-#     current_user = get_jwt_identity()
-#     if not is_admin(current_user):
-#         return jsonify({"error": "Unauthorized access"}), 403
-
-#     # Fetch the document by ID
-#     document = DocumentUpload.query.get(document_id)
-#     if not document:
-#         return jsonify({"error": "Document not found"}), 404
-
-#     # Update the document status to approved
-#     document.status = 'Approved'
-#     db.session.commit()
-#     return jsonify({"message": "Document approved successfully."}), 200
-
-# @app.route('/admin/documents/<int:document_id>/reject', methods=['POST'])
-# @jwt_required()
-# def reject_document(document_id):
-#     current_user = get_jwt_identity()
-#     if not is_admin(current_user):
-#         return jsonify({"error": "Unauthorized access"}), 403
-
-#     # Fetch the document by ID
-#     document = DocumentUpload.query.get(document_id)
-#     if not document:
-#         return jsonify({"error": "Document not found"}), 404
-
-#     # Update the document status to rejected
-#     document.status = 'Rejected'
-#     db.session.commit()
-#     return jsonify({"message": "Document rejected successfully."}), 200
 
 
 
@@ -1125,38 +1105,6 @@ def get_user_documents():
         })
 
     return jsonify({"documents": documents_data}), 200
-
-
-# @app.route('/profile', methods=['GET'])
-# @jwt_required()
-# def get_profile():
-#     current_user_id = get_jwt_identity()
-
-#     # Fetch agency information for the current user
-#     agency = Agency.query.filter_by(user_id=current_user_id).first()
-#     if not agency:
-#         return jsonify({"agency": None}), 404  # No agency found
-
-#     # Fetch member accounts for the current user
-#     members = MemberAccountAdministrator.query.filter_by(user_id=current_user_id).all()
-#     members_data = [member.as_dict() for member in members]  # Assuming as_dict method exists
-
-#     # Combine agency and members data
-#     profile_data = {
-#         "agency": {
-#             "membershipStatus": agency.membershipStatus,
-#             "membershipExpiration": agency.membershipExpiration,
-#             "mission_statement": agency.mission_statement,  # Changed here
-#             "website": agency.website,  # Changed here
-#             # Add other fields...
-#         },
-#         "members": members_data,
-#     }
-
-#     return jsonify(profile_data), 200
-
-
-
 
 
 
