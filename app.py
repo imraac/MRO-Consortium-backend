@@ -16,12 +16,21 @@ import os
 from werkzeug.utils import secure_filename
 from flask import current_app
 from file_utils import save_file_to_directory 
+from itsdangerous import URLSafeSerializer
+from flask_mail import Mail , Message
+
+
+
 app = Flask(__name__)
+
+
 CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
-app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'uploads')  # Set the uploads folder path
 
 app.config.from_object(Config)
+
+
 app.secret_key = Config.SECRET_KEY
+
 login_manager = LoginManager(app)  
 login_manager.init_app(app)
 db.init_app(app)
@@ -29,11 +38,19 @@ migrate = Migrate(app, db)
 bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 
+mail = Mail(app)
+
+app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'uploads')  # Set the uploads folder path
+
 with app.app_context():
     db.create_all()
 
+
+
 app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=7)
 app.config['SESSION_COOKIE_HTTPONLY'] = True
+
+logging.basicConfig(level=logging.INFO)
 
 
 @login_manager.user_loader
@@ -940,39 +957,6 @@ def get_member_accounts():
     ]), 200
 
 
-
-# @app.route('/agency-details', methods=['POST'])
-# @jwt_required()  
-# def create_con():
-#     current_user_id = get_jwt_identity()  
-   
-#     data = request.get_json()
-    
-  
-#     required_fields = ['full_name', 'email_address', 'additional_accounts', 'email_copy']
-#     if not all(field in data for field in required_fields):
-#         return jsonify({"msg": "Missing fields"}), 400
-
-    
-#     existing_application = ConsortiumApplication.query.filter_by(email_address=data['email_address']).first()
-#     if existing_application:
-#         return jsonify({"msg": "A consortium application with this email address already exists."}), 409  
-
-#     consortium_application = ConsortiumApplication(
-#         full_name=data['full_name'],
-#         email_address=data['email_address'],
-#         additional_accounts=data['additional_accounts'],
-#         mailing_list=data.get('mailing_list', None), 
-#         email_copy=data['email_copy'],
-#         documents=data.get('documents', None),  
-#         user_id=current_user_id  
-#     )
-
-#     db.session.add(consortium_application)
-#     db.session.commit()
-
-#     return jsonify(consortium_application.as_dict()), 201
-
 @app.route('/agency', methods=['GET'])
 @jwt_required()
 def get_agency_info():
@@ -1012,29 +996,129 @@ def update_agency_info():
     return jsonify({"message": "Agency information updated successfully!"}), 200
 
 
+@app.route('/profile', methods=['GET'])
+@jwt_required()
+def get_profile():
+    current_user_id = get_jwt_identity()
+
+    agency = Agency.query.filter_by(user_id=current_user_id).first()
+    if not agency:
+        return jsonify({"agency": None}), 404  
+
+    members = MemberAccountAdministrator.query.filter_by(user_id=current_user_id).all()
+    members_data = [member.as_dict() for member in members]  # Assuming `as_dict` method exists
+
+    # Combine agency and mem
+    profile_data = {
+        "agency": agency.as_dict(),  # Assuming `as_dict` method exists on Agency model
+        "members": members_data,
+    }
+
+    return jsonify(profile_data), 200
 
 
 
 
+@app.route('/reset-password', methods=['POST'])
+def reset_request ():
+    data = request.get_json()
+    email = data.get('email')
+    user = User.query.filter_by(email=email).first()
+
+
+    if user:
+        s = URLSafeSerializer(app.secret_key)
+        token = s.dumps(email, salt='password-reset-salt')
+
+        reset_link = f'http://localhost:5173/reset-password/{token}'
+
+        msg = Message('Password Reset Request',
+                      sender= app.config['MAIL_USERNAME'],
+                      recipients=[email])
+        msg.body = f'Please click the link to reset your password: {reset_link}'
+
+
+        try:
+            mail.send(msg)
+            return make_response({
+                "success": True,
+                "message": "Password reset email sent. Please check your inbox."
+            }, 200)
+        except Exception as e:
+            return make_response({
+                "success": False,
+                "message": "Failed to send email. Please try again."
+            }, 500)
+        
+    return make_response({
+        "success": False,
+        "message": "Email not found."
+    }, 404)
+
+
+@app.route('/reset-password/<token>', methods=['POST'])
+def reset_password(token):
+    s = URLSafeSerializer(app.secret_key)
+
+    try:
+        # Verify the token
+        email = s.loads(token, salt='password-reset-salt')
+        logging.info(f"Token valid for email: {email}")
+    except Exception as e:
+        logging.error(f"Token verification failed: {str(e)}")
+        return make_response({
+            "success": False,
+            "message": "Invalid or expired token."
+        }, 400)
+
+    data = request.get_json()
+    new_password = data.get('password')
+
+    if not new_password:
+        return make_response({
+            "success": False,
+            "message": "Password cannot be empty."
+        }, 400)
+
+    user = User.query.filter_by(email=email).first()
+    if user:
+        user.password = bcrypt.generate_password_hash(new_password).decode('utf-8')
+
+        db.session.commit()
+
+        return make_response({
+            "success": True,
+            "message": "Your password has been reset successfully."
+        }, 200)
+    
+    logging.error(f"User not found for email: {email}")
+    return make_response({
+        "success": False,
+        "message": "User not found."
+    }, 404)
 
 
 
 
+@app.route('/reset-password/<token>', methods=['GET'])
+def verify_token(token):
+    s = URLSafeSerializer(app.secret_key)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    try:
+        # Verify the token and extract the email
+        email = s.loads(token, salt='password-reset-salt')
+        logging.info(f"Token is valid. Email extracted: {email}")  # Log the extracted email
+        return make_response({
+            "success": True,
+            "message": "Valid token. You can reset your password.",
+            "email": email  # Optionally send email back in the response for debugging
+        }, 200)
+    except Exception as e:
+        logging.error(f"Token verification failed: {str(e)}")
+        return make_response({
+            "success": False,
+            "message": "Invalid or expired token."
+        }, 400)
 
 
 
