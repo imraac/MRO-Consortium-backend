@@ -12,6 +12,8 @@ flask-restful = "*"
 flask-bcrypt = "*"
 flask-jwt-extended = "*"
 flask-login = "*"
+flask-mail = "*"
+pytz = "*"
 
 [dev-packages]
 

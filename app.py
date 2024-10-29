@@ -1,7 +1,7 @@
 
 
 from flask import Flask, request, jsonify, make_response, session
-from models import db, Founder, Agency, User ,UserAction ,BoardDirector,KeyStaff,Consortium ,MemberAccountAdministrator,ConsortiumApplication ,ConsortiumMemberApplication,DocumentUpload
+from models import db, Founder, Agency, User ,UserAction ,BoardDirector,KeyStaff,Consortium ,MemberAccountAdministrator,ConsortiumApplication ,ConsortiumMemberApplication,DocumentUpload,LoginHistory
 from flask import Flask, request, jsonify
 import jwt
 from flask_jwt_extended import get_jwt
@@ -20,8 +20,9 @@ import os
 from werkzeug.utils import secure_filename
 from flask import current_app
 from file_utils import save_file_to_directory 
-
-
+from itsdangerous import URLSafeSerializer
+from flask_mail import Mail , Message
+import pytz
 
 
 app = Flask(__name__)
@@ -39,6 +40,7 @@ migrate = Migrate(app, db)
 bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 
+mail = Mail(app)
 with app.app_context():
     db.create_all()
 
@@ -55,6 +57,34 @@ def get_current_user():
     return User.query.get(user_id)
 
 
+class LoginHistoryResource(Resource):
+    @jwt_required()
+    def get(self):
+        user_id = get_jwt_identity()  # Gets the ID of the currently logged-in user
+        login_history = LoginHistory.query.filter_by(user_id=user_id).order_by(LoginHistory.login_time.desc()).all()
+        
+        # Define the timezone for Kenya and UTC
+        kenya_timezone = pytz.timezone("Africa/Nairobi")
+        utc_timezone = pytz.UTC
+
+        history_data = []
+        for entry in login_history:
+            # Treat login_time as UTC then convert to Kenya timezone
+            login_time_utc = entry.login_time.replace(tzinfo=utc_timezone)
+            login_time_kenya = login_time_utc.astimezone(kenya_timezone).strftime("%A, %d %B %Y, %I:%M:%S %p")
+            
+            # Treat logout_time as UTC if it exists, then convert to Kenya timezone
+            logout_time_kenya = (
+                entry.logout_time.replace(tzinfo=utc_timezone).astimezone(kenya_timezone).strftime("%A, %d %B %Y, %I:%M:%S %p")
+                if entry.logout_time else None
+            )
+            
+            history_data.append({
+                "login_time": login_time_kenya,
+                "logout_time": logout_time_kenya
+            })
+
+        return jsonify(history_data)
 class Users(Resource):
     def post(self):
         data = request.get_json()
@@ -108,9 +138,7 @@ def get_users():
     })
 
 
-
-
-
+from datetime import datetime
 
 class Login(Resource):
     def post(self):
@@ -123,7 +151,12 @@ class Login(Resource):
             access_token = create_access_token(identity=user.id)
             session['user_id'] = user.id 
 
-            # Fetch the document status for the user
+            # Log login time
+            login_entry = LoginHistory(user_id=user.id, login_time=datetime.utcnow())
+            db.session.add(login_entry)
+            db.session.commit()
+
+            # Fetch document status and other user details
             document = DocumentUpload.query.filter_by(user_id=user.id).first()
             document_status = document.status if document else "Pending"
 
@@ -141,6 +174,39 @@ class Login(Resource):
             }, 200)
         
         return make_response({"message": "Invalid credentials"}, 401)
+
+
+
+
+# class Login(Resource):
+#     def post(self):
+#         data = request.get_json()
+#         email = data.get('email')
+#         password = data.get('password')
+#         user = User.query.filter_by(email=email).first()
+
+#         if user and bcrypt.check_password_hash(user.password, password):
+#             access_token = create_access_token(identity=user.id)
+#             session['user_id'] = user.id 
+
+#             # Fetch the document status for the user
+#             document = DocumentUpload.query.filter_by(user_id=user.id).first()
+#             document_status = document.status if document else "Pending"
+
+#             return make_response({
+#                 "user": {
+#                     "id": user.id,
+#                     "email": user.email,
+#                     "role": user.role,
+#                     "is_approved": user.is_approved,
+#                     "document_status": document_status
+#                 },
+#                 "access_token": access_token,
+#                 "success": True,
+#                 "message": "Login successful"
+#             }, 200)
+        
+#         return make_response({"message": "Invalid credentials"}, 401)
 
 
 
@@ -1112,6 +1178,107 @@ def get_user_documents():
 
 
 
+@app.route('/reset-password', methods=['POST'])
+def reset_request ():
+    data = request.get_json()
+    email = data.get('email')
+    user = User.query.filter_by(email=email).first()
+
+
+    if user:
+        s = URLSafeSerializer(app.secret_key)
+        token = s.dumps(email, salt='password-reset-salt')
+
+        reset_link = f'http://localhost:5173/reset-password/{token}'
+
+        msg = Message('Password Reset Request',
+                      sender= app.config['MAIL_USERNAME'],
+                      recipients=[email])
+        msg.body = f'Please click the link to reset your password: {reset_link}'
+
+
+        try:
+            mail.send(msg)
+            return make_response({
+                "success": True,
+                "message": "Password reset email sent. Please check your inbox."
+            }, 200)
+        except Exception as e:
+            return make_response({
+                "success": False,
+                "message": "Failed to send email. Please try again."
+            }, 500)
+        
+    return make_response({
+        "success": False,
+        "message": "Email not found."
+    }, 404)
+
+
+@app.route('/reset-password/<token>', methods=['POST'])
+def reset_password(token):
+    s = URLSafeSerializer(app.secret_key)
+
+    try:
+        # Verify the token
+        email = s.loads(token, salt='password-reset-salt')
+        logging.info(f"Token valid for email: {email}")
+    except Exception as e:
+        logging.error(f"Token verification failed: {str(e)}")
+        return make_response({
+            "success": False,
+            "message": "Invalid or expired token."
+        }, 400)
+
+    data = request.get_json()
+    new_password = data.get('password')
+
+    if not new_password:
+        return make_response({
+            "success": False,
+            "message": "Password cannot be empty."
+        }, 400)
+
+    user = User.query.filter_by(email=email).first()
+    if user:
+        user.password = bcrypt.generate_password_hash(new_password).decode('utf-8')
+
+        db.session.commit()
+
+        return make_response({
+            "success": True,
+            "message": "Your password has been reset successfully."
+        }, 200)
+    
+    logging.error(f"User not found for email: {email}")
+    return make_response({
+        "success": False,
+        "message": "User not found."
+    }, 404)
+
+
+
+
+@app.route('/reset-password/<token>', methods=['GET'])
+def verify_token(token):
+    s = URLSafeSerializer(app.secret_key)
+
+    try:
+        # Verify the token and extract the email
+        email = s.loads(token, salt='password-reset-salt')
+        logging.info(f"Token is valid. Email extracted: {email}")  # Log the extracted email
+        return make_response({
+            "success": True,
+            "message": "Valid token. You can reset your password.",
+            "email": email  # Optionally send email back in the response for debugging
+        }, 200)
+    except Exception as e:
+        logging.error(f"Token verification failed: {str(e)}")
+        return make_response({
+            "success": False,
+            "message": "Invalid or expired token."
+        }, 400)
+
 
 
 
@@ -1128,6 +1295,7 @@ api.add_resource(Users, '/signup')
 api.add_resource(Login, '/login')
 api.add_resource(Logout, '/logout')
 api.add_resource(VerifyToken, '/verify-token')
+api.add_resource(LoginHistoryResource, '/login-history')
 
 
 
