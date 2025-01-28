@@ -5,7 +5,6 @@ from models import db, Founder, Agency, User ,UserAction ,BoardDirector,KeyStaff
 from flask import Flask, request, jsonify
 import jwt
 from flask_jwt_extended import get_jwt
-
 from config import Config
 from flask import send_from_directory
 from flask_login import  login_required,  current_user,LoginManager
@@ -60,20 +59,16 @@ def get_current_user():
 class LoginHistoryResource(Resource):
     @jwt_required()
     def get(self):
-        user_id = get_jwt_identity()  # Gets the ID of the currently logged-in user
+        user_id = get_jwt_identity()  
         login_history = LoginHistory.query.filter_by(user_id=user_id).order_by(LoginHistory.login_time.desc()).all()
-        
-        # Define the timezone for Kenya and UTC
         kenya_timezone = pytz.timezone("Africa/Nairobi")
         utc_timezone = pytz.UTC
 
         history_data = []
         for entry in login_history:
-            # Treat login_time as UTC then convert to Kenya timezone
             login_time_utc = entry.login_time.replace(tzinfo=utc_timezone)
             login_time_kenya = login_time_utc.astimezone(kenya_timezone).strftime("%A, %d %B %Y, %I:%M:%S %p")
             
-            # Treat logout_time as UTC if it exists, then convert to Kenya timezone
             logout_time_kenya = (
                 entry.logout_time.replace(tzinfo=utc_timezone).astimezone(kenya_timezone).strftime("%A, %d %B %Y, %I:%M:%S %p")
                 if entry.logout_time else None
@@ -111,10 +106,8 @@ class Users(Resource):
             "message": "User has been created successfully"
         }, 201)
     def get(self):
-        # Retrieve all users from the database
         users = User.query.all()
         
-        # Convert users to a list of dictionaries
         users_list = [user.to_dict() for user in users]
 
         return make_response({
@@ -151,12 +144,10 @@ class Login(Resource):
             access_token = create_access_token(identity=user.id)
             session['user_id'] = user.id 
 
-            # Log login time
             login_entry = LoginHistory(user_id=user.id, login_time=datetime.utcnow())
             db.session.add(login_entry)
             db.session.commit()
 
-            # Fetch document status and other user details
             document = DocumentUpload.query.filter_by(user_id=user.id).first()
             document_status = document.status if document else "Pending"
 
@@ -178,36 +169,6 @@ class Login(Resource):
 
 
 
-# class Login(Resource):
-#     def post(self):
-#         data = request.get_json()
-#         email = data.get('email')
-#         password = data.get('password')
-#         user = User.query.filter_by(email=email).first()
-
-#         if user and bcrypt.check_password_hash(user.password, password):
-#             access_token = create_access_token(identity=user.id)
-#             session['user_id'] = user.id 
-
-#             # Fetch the document status for the user
-#             document = DocumentUpload.query.filter_by(user_id=user.id).first()
-#             document_status = document.status if document else "Pending"
-
-#             return make_response({
-#                 "user": {
-#                     "id": user.id,
-#                     "email": user.email,
-#                     "role": user.role,
-#                     "is_approved": user.is_approved,
-#                     "document_status": document_status
-#                 },
-#                 "access_token": access_token,
-#                 "success": True,
-#                 "message": "Login successful"
-#             }, 200)
-        
-#         return make_response({"message": "Invalid credentials"}, 401)
-
 
 
 
@@ -217,19 +178,14 @@ class Logout(Resource):
     @jwt_required()
     def post(self):
         try:
-            # Get the JWT's unique identifier (jti)
             jti = get_jwt()["jti"]
             
-            # Add the token to the blacklist
             blacklist.add(jti)
             
-            # Clear session or any additional user data
             session.pop('user_id', None)
             
-            # Return a properly formatted JSON response
             return {"message": "Logout successful"}, 200
         except Exception as e:
-            # Ensure that any errors are returned as JSON
             return {"message": f"An error occurred: {str(e)}"}, 500
 
 
@@ -239,7 +195,6 @@ def check_if_token_in_blacklist(jwt_header, jwt_payload):
 
 
 
-# Resource to verify JWT token
 class VerifyToken(Resource):
     @jwt_required()
     def post(self):
@@ -279,9 +234,7 @@ def add_agency():
             commitment_to_principles=data['commitment_to_principles'],
         )
         
-        # Associate the agency with the current logged-in user
         agency.user_id = current_user_id  
-        # Add the agency to the session and commit to the database
         db.session.add(agency)
         db.session.commit()
 
@@ -316,13 +269,10 @@ def add_agency():
 @jwt_required()
 def get_agencies():
     try:
-        # Get the ID of the current logged-in user
         current_user_id = get_jwt_identity()
 
-        # Query all agencies associated with the current user
         agencies = Agency.query.filter_by(user_id=current_user_id).all()
 
-        # Convert each agency to a dictionary format
         agencies_list = [{
             "id": agency.id,
             "full_name": agency.full_name,
@@ -351,14 +301,12 @@ def get_agencies():
 
 
 
-# agency for all users in the system not just specific
 
 
 @app.route('/agencies', methods=['GET'])
 @jwt_required()
 def get_all_agencies():
     try:
-        # Retrieve all agencies from the database
         agencies = Agency.query.all()
 
         agencies_list = [{
@@ -405,32 +353,59 @@ def get_user_actions():
     actions = UserAction.query.filter_by(user_id=current_user.id).all()
     return jsonify([action.as_dict() for action in actions]), 200
 
-@app.route('/agency/<int:agency_id>', methods=['PUT'])
+
+
+@app.route('/agency', methods=['PUT'])
 @jwt_required()
-def update_agency(agency_id):
-    current_user = get_current_user() 
-    data = request.get_json()
-
-    agency = Agency.query.filter_by(id=agency_id, user_id=current_user.id).first()  
-    if not agency:
-        return jsonify({"message": "Agency not found or not authorized"}), 404
-
+def update_agency():
     try:
+        current_user = get_current_user()  
+        print(f"Current user ID: {current_user.id}")  
+
+        if not request.is_json:
+            return jsonify({"error": "Request must be in JSON format"}), 400
+
+        data = request.get_json()
+
+        def parse_boolean(value):
+            if isinstance(value, bool):
+                return value
+            elif isinstance(value, str):
+                return value.lower() in ['true', '1', 't', 'y', 'yes']
+            return False
+
+        agency = Agency.query.filter_by(user_id=current_user.id).first()
+
+        if not agency:
+            print(f"No agency found for user {current_user.id}")  
+            return jsonify({"message": "Agency not found or not authorized"}), 404
+
+        print(f"Updating agency: {agency.id}, {agency.full_name}")
+
         agency.full_name = data.get('full_name', agency.full_name)
         agency.acronym = data.get('acronym', agency.acronym)
         agency.description = data.get('description', agency.description)
         agency.mission_statement = data.get('mission_statement', agency.mission_statement)
         agency.website = data.get('website', agency.website)
-        agency.is_ngo = data.get('is_ngo', agency.is_ngo)
+        
+        agency.is_ngo = parse_boolean(data.get('is_ngo', agency.is_ngo))
         agency.years_operational = data.get('years_operational', agency.years_operational)
         agency.reason_for_joining = data.get('reason_for_joining', agency.reason_for_joining)
-        agency.willing_to_participate = data.get('willing_to_participate', agency.willing_to_participate)
-        agency.commitment_to_principles = data.get('commitment_to_principles', agency.commitment_to_principles)
+        agency.willing_to_participate = parse_boolean(data.get('willing_to_participate', agency.willing_to_participate))
+        agency.commitment_to_principles = parse_boolean(data.get('commitment_to_principles', agency.commitment_to_principles))
 
         db.session.commit()
 
-        return jsonify({"message": "Agency updated successfully!"}), 200
+        updated_agency = Agency.query.get(agency.id)
+
+        return jsonify({
+            "message": "Agency updated successfully!",
+            "agency": updated_agency.as_dict()
+        }), 200
+
     except Exception as e:
+        db.session.rollback()  
+        print(f"Error during agency update: {str(e)}")  
         return jsonify({"error": str(e)}), 500
 # 
 
@@ -625,7 +600,12 @@ def handle_key_staff_member(id):
 
 
 
-
+@app.route('/refresh-token', methods=['POST'])
+@jwt_required(refresh=True)
+def refresh_token():
+    current_user = get_jwt_identity()
+    new_token = create_access_token(identity=current_user)
+    return jsonify(newToken=new_token), 200
 
 
 
@@ -691,20 +671,20 @@ def create_member_account():
             hq_state=data['hq_state'],
             hq_country=data['hq_country'],
             hq_telephone=data['hq_telephone'],
-            hq_telephone2=data.get('hq_telephone2'),  # Optional
-            hq_fax=data.get('hq_fax'),  # Optional
-            regional_same_as_hq=data.get('regional_same_as_hq', False),  # Default to False if not provided
-            regional_name=data.get('regional_name'),  # Optional
-            regional_position=data.get('regional_position'),  # Optional
-            regional_email=data.get('regional_email'),  # Optional
-            regional_address=data.get('regional_address'),  # Optional
-            regional_city=data.get('regional_city'),  # Optional
-            regional_state=data.get('regional_state'),  # Optional
-            regional_country=data.get('regional_country'),  # Optional
-            regional_telephone=data.get('regional_telephone'),  # Optional
-            regional_telephone2=data.get('regional_telephone2'),  # Optional
-            regional_fax=data.get('regional_fax'),  # Optional
-            user_id=current_user_id  # Use the user ID from the JWT token
+            hq_telephone2=data.get('hq_telephone2'),  
+            hq_fax=data.get('hq_fax'), 
+            regional_same_as_hq=data.get('regional_same_as_hq', False),  
+            regional_name=data.get('regional_name'),  
+            regional_position=data.get('regional_position'), 
+            regional_email=data.get('regional_email'), 
+            regional_address=data.get('regional_address'),
+            regional_city=data.get('regional_city'),  
+            regional_state=data.get('regional_state'), 
+            regional_country=data.get('regional_country'), 
+            regional_telephone=data.get('regional_telephone'), 
+            regional_telephone2=data.get('regional_telephone2'), 
+            regional_fax=data.get('regional_fax'),  
+            user_id=current_user_id  
         )
         db.session.add(new_member)
         db.session.commit()
@@ -716,7 +696,7 @@ def create_member_account():
 
 
 @app.route('/member-account/<int:id>', methods=['PUT'])
-@jwt_required()  # Protect this route with JWT
+@jwt_required() 
 def update_member_account(id):
     data = request.json
     member = MemberAccountAdministrator.query.get_or_404(id)
@@ -758,7 +738,6 @@ def update_member_account(id):
 
 
 
-#  route to get all member account administrators
 @app.route('/member-account', methods=['GET'])
 @jwt_required()  
 def get_member_accounts():
@@ -797,12 +776,10 @@ def get_member_accounts():
     ]), 200
 
 
-# consortium-registration
 
 
 
 
-# route to get a member account by ID
 @app.route('/member-account/<int:id>', methods=['GET'])
 @jwt_required()  
 def get_member_account(id):
@@ -876,23 +853,21 @@ def create_con():
 
 
 @app.route('/consortium_application', methods=['POST'])
-@jwt_required()  # Ensure that the user is authenticated
+@jwt_required() 
 def create_consortium_application():
-    current_user_id = get_jwt_identity()  # Get the current user's ID from the JWT token
+    current_user_id = get_jwt_identity()  
 
     data = request.get_json()
 
     full_name = data.get('full_name')
     email_address = data.get('email_address')
     additional_accounts = data.get('additional_accounts')
-    mailing_list = data.get('mailing_list', '')  # Optional field
+    mailing_list = data.get('mailing_list', '')  
     email_copy = data.get('email_copy')
 
-    # Validate required fields
     if not full_name or not email_address or not additional_accounts or not email_copy:
         return jsonify({'error': 'All fields are required unless stated otherwise.'}), 400
 
-    # Validate additional_accounts as a positive integer
     try:
         additional_accounts = int(additional_accounts)
         if additional_accounts <= 0:
@@ -900,26 +875,23 @@ def create_consortium_application():
     except ValueError:
         return jsonify({'error': 'Requested number of additional accounts must be a valid positive number.'}), 400
 
-    # Create a new ConsortiumMemberApplication instance
     new_application = ConsortiumApplication(
         full_name=full_name,
         email_address=email_address,
         additional_accounts=additional_accounts,
         mailing_list=mailing_list,
         email_copy=email_copy,
-        user_id=current_user_id  # Associate the application with the current user
+        user_id=current_user_id  
     )
 
     try:
-        # Add and commit the new application to the database
         db.session.add(new_application)
         db.session.commit()
     except Exception as e:
-        db.session.rollback()  # Roll back the transaction in case of error
+        db.session.rollback() 
         print(f"Error occurred while saving to the database: {str(e)}")
         return jsonify({'error': 'An error occurred while saving to the database.'}), 500
 
-    # Return the response indicating successful creation
     return jsonify({
         'message': (
             'Consortium Member Application successfully created! '
@@ -939,36 +911,29 @@ def create_consortium_application():
 
 
 
-# Route to get all ConsortiumMemberApplications for the current user
 @app.route('/consortium_applications', methods=['GET'])
-@jwt_required()  # Ensure that the user is authenticated
+@jwt_required()  
 def get_consortium_applications():
-    current_user_id = get_jwt_identity()  # Get the current user's ID from the JWT token
+    current_user_id = get_jwt_identity()  
 
-    # Query to get all consortium member applications for the current user
     applications = ConsortiumMemberApplication.query.filter_by(user_id=current_user_id).all()
 
-    # Convert the application data to a list of dictionaries
     applications_list = [application.to_dict() for application in applications]
 
     return jsonify({'applications': applications_list}), 200
 
 
 
-# Route to get all ConsortiumMemberApplications for a specific user by user_id
 @app.route('/consortium_applications/user/<int:user_id>', methods=['GET'])
-@jwt_required()  # Ensure that the user is authenticated
+@jwt_required() 
 def get_consortium_applications_by_user(user_id):
-    current_user_id = get_jwt_identity()  # Get the current user's ID from the JWT token
+    current_user_id = get_jwt_identity() 
 
-    # Check if the current user is requesting their own data or has the right permissions (if needed)
     if current_user_id != user_id:
         return jsonify({'error': 'You are not authorized to view this data.'}), 403
 
-    # Query to get all consortium member applications for the specified user_id
     applications = ConsortiumMemberApplication.query.filter_by(user_id=user_id).all()
 
-    # Convert the application data to a list of dictionaries
     applications_list = [application.to_dict() for application in applications]
 
     return jsonify({'applications': applications_list}), 200
@@ -982,6 +947,34 @@ def get_consortium_applications_by_user(user_id):
 
 
 
+@app.route('/upload-single', methods=['POST'])
+@jwt_required()
+def upload_single_document():
+    current_user_id = get_jwt_identity()
+    if 'unique_document' not in request.files:
+        return jsonify({"error": "No file part in the request"}), 400
+
+    file = request.files['unique_document']
+    
+    if file.filename == '':
+        return jsonify({"error": "No selected file for uploading"}), 400
+
+    try:
+        file_path = save_file_to_directory(file)
+        
+        unique_document = UniqueDocument(
+            user_id=current_user_id,
+            document_path=file_path,
+            status='Pending'  
+        )
+
+        db.session.add(unique_document)
+        db.session.commit()
+
+        return jsonify({"message": "Unique document uploaded successfully, awaiting admin approval.", "document_id": unique_document.id}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Error uploading document, please try again."}), 500
 
 
 
@@ -1001,12 +994,10 @@ def upload_document():
         'icrc_code_of_conduct'
     ]
 
-    # Check for missing files
     missing_files = [file_key for file_key in required_files if file_key not in files]
     if missing_files:
         return jsonify({"error": f"Missing files: {', '.join(missing_files)}"}), 400
 
-    # Validate received files
     received_files = {}
     for file_key in required_files:
         if file_key in files and files[file_key].filename != '':
@@ -1022,7 +1013,7 @@ def upload_document():
             audit_report=save_file_to_directory(received_files['audit_report']),
             ngo_consortium_mandate=save_file_to_directory(received_files['ngo_consortium_mandate']),
             icrc_code_of_conduct=save_file_to_directory(received_files['icrc_code_of_conduct']),
-            status='Pending'  # Set initial status to Pending
+            status='Pending'  
         )
 
         db.session.add(document_upload)
@@ -1038,16 +1029,13 @@ def upload_document():
 def get_uploaded_documents():
     current_user_id = get_jwt_identity()
     
-    # Check if the current user is an admin
     if not is_admin(current_user_id):
         return jsonify({"error": "Access forbidden: Admins only."}), 403
 
-    # Fetch all document uploads from the database
     documents = DocumentUpload.query.all()
     document_list = []
 
     for doc in documents:
-        # Ensure each document path is not empty or None
         document_list.append({
             "id": doc.id,
             "user_id": doc.user_id,
@@ -1078,7 +1066,6 @@ def is_admin(current_user):
     
 @app.route('/uploads/<filename>', methods=['GET'])
 def get_uploaded_file(filename):
-    # Use the defined upload directory without redundant path
     return send_from_directory(UPLOAD_DIRECTORY, filename)
 
 def save_file_to_directory(file):
@@ -1086,8 +1073,8 @@ def save_file_to_directory(file):
         filename = secure_filename(file.filename)
         file_path = os.path.join(UPLOAD_DIRECTORY, filename)
         file.save(file_path)
-        logging.info(f"File saved to: {file_path}")  # Log the full save path
-        return filename  # Return only the filename
+        logging.info(f"File saved to: {file_path}")  
+        return filename 
     except Exception as e:
         logging.error(f"Error saving file {file.filename}: {e}")
         raise Exception("Could not save file") from e
@@ -1105,16 +1092,13 @@ def approve_document(document_id):
     if not is_admin(current_user):
         return jsonify({"error": "Unauthorized access"}), 403
 
-    # Fetch the document by ID
     document = DocumentUpload.query.get(document_id)
     if not document:
         return jsonify({"error": "Document not found"}), 404
 
-    # Update the document status to approved
     document.status = 'Approved'
 
-    # Approve the user associated with the document
-    user = document.user  # Assuming DocumentUpload has a relationship with User
+    user = document.user  
     if user:
         user.is_approved = True
 
@@ -1128,16 +1112,14 @@ def reject_document(document_id):
     if not is_admin(current_user):
         return jsonify({"error": "Unauthorized access"}), 403
 
-    # Fetch the document by ID
     document = DocumentUpload.query.get(document_id)
     if not document:
         return jsonify({"error": "Document not found"}), 404
 
-    # Update the document status to rejected
     document.status = 'Rejected'
 
-    # Reject the user associated with the document
-    user = document.user  # Assuming DocumentUpload has a relationship with User
+   
+    user = document.user  
     if user:
         user.is_approved = False
 
@@ -1152,13 +1134,11 @@ def reject_document(document_id):
 def get_user_documents():
     current_user_id = get_jwt_identity()
     
-    # Query the DocumentUpload table for the current user's documents
     documents = DocumentUpload.query.filter_by(user_id=current_user_id).all()
 
     if not documents:
         return jsonify({"message": "No documents found for this user."}), 404
 
-    # Prepare the response data
     documents_data = []
     for doc in documents:
         documents_data.append({
@@ -1264,13 +1244,12 @@ def verify_token(token):
     s = URLSafeSerializer(app.secret_key)
 
     try:
-        # Verify the token and extract the email
         email = s.loads(token, salt='password-reset-salt')
-        logging.info(f"Token is valid. Email extracted: {email}")  # Log the extracted email
+        logging.info(f"Token is valid. Email extracted: {email}")  
         return make_response({
             "success": True,
             "message": "Valid token. You can reset your password.",
-            "email": email  # Optionally send email back in the response for debugging
+            "email": email  
         }, 200)
     except Exception as e:
         logging.error(f"Token verification failed: {str(e)}")

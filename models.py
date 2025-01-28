@@ -7,7 +7,6 @@ from flask_login import UserMixin
 
 db = SQLAlchemy()
 
-# User model
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
     
@@ -18,12 +17,15 @@ class User(UserMixin, db.Model):
     role = db.Column(db.String(50), default='user')
     is_approved = db.Column(db.Boolean, default=False)  # Approval status
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    agency_id = db.Column(db.Integer, db.ForeignKey('agencies.id'))
-    
+    # agency_id = db.Column(db.Integer, db.ForeignKey('agencies.id'))
+    # agency_id = db.Column(db.Integer, db.ForeignKey('agencies.id'))
+    agency_id = db.Column(db.Integer, db.ForeignKey('agencies.id', use_alter=True, name='fk_user_agency'), nullable=True)
+
     # Relationships
     actions = db.relationship('UserAction', back_populates='user', cascade='all, delete-orphan')
     agency = db.relationship('Agency', foreign_keys=[agency_id])
     login_history = db.relationship('LoginHistory', back_populates='user', cascade='all, delete-orphan')
+    unique_documents = db.relationship('UniqueDocument', back_populates='user', cascade='all, delete-orphan')
 
     founders = db.relationship('Founder', back_populates='user', cascade='all, delete-orphan')
     board_directors = db.relationship('BoardDirector', back_populates='user', cascade='all, delete-orphan')
@@ -54,6 +56,21 @@ class User(UserMixin, db.Model):
             "created_at": self.created_at.isoformat(),
             "agency_id": self.agency_id  
         }
+
+class UniqueDocument(db.Model):
+    __tablename__ = 'unique_documents'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Link to User
+    document_path = db.Column(db.String(255), nullable=False)
+    status = db.Column(db.String(50), nullable=False, default='Pending')
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationship back to User
+    user = db.relationship('User', back_populates='unique_documents')
+
+    def __repr__(self):
+        return f"<UniqueDocument(id={self.id}, user_id={self.user_id}, status={self.status}, uploaded_at={self.uploaded_at})>"
 
 
 class LoginHistory(db.Model):
@@ -94,7 +111,10 @@ class Agency(db.Model):
     __tablename__ = 'agencies'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Foreign key to User
+    # user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Foreign key to User
+    # user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', use_alter=True, name='fk_agency_user'), nullable=False)
+
     full_name = db.Column(db.String(150), nullable=False)
     acronym = db.Column(db.String(50), nullable=True)
     description = db.Column(db.Text, nullable=False)
