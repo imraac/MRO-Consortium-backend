@@ -1,11 +1,13 @@
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import validates
+from sqlalchemy import MetaData
 import re
 from datetime import datetime
 from flask_login import UserMixin
 
-db = SQLAlchemy()
+metadata = MetaData()
+db = SQLAlchemy(metadata= metadata)
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -52,7 +54,7 @@ class User(UserMixin, db.Model):
             "username": self.username,
             "email": self.email,
             "role": self.role,
-            "is_approved": self.is_approved,  # Include approval status in dict
+            "is_approved": self.is_approved,  
             "created_at": self.created_at.isoformat(),
             "agency_id": self.agency_id  
         }
@@ -61,12 +63,11 @@ class UniqueDocument(db.Model):
     __tablename__ = 'unique_documents'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Link to User
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  
     document_path = db.Column(db.String(255), nullable=False)
     status = db.Column(db.String(50), nullable=False, default='Pending')
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Relationship back to User
     user = db.relationship('User', back_populates='unique_documents')
 
     def __repr__(self):
@@ -111,8 +112,7 @@ class Agency(db.Model):
     __tablename__ = 'agencies'
     
     id = db.Column(db.Integer, primary_key=True)
-    # user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Foreign key to User
-    # user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', use_alter=True, name='fk_agency_user'), nullable=False)
 
     full_name = db.Column(db.String(150), nullable=False)
@@ -142,7 +142,7 @@ class Agency(db.Model):
             'reason_for_joining': self.reason_for_joining,
             'willing_to_participate': self.willing_to_participate,
             'commitment_to_principles': self.commitment_to_principles,
-            'user_id': self.user_id  # Include user_id if needed in the output
+            'user_id': self.user_id  
         }
 
 
@@ -239,7 +239,7 @@ class MemberAccountAdministrator(db.Model):
     member_name = db.Column(db.String(100), nullable=False)
     member_email = db.Column(db.String(100), nullable=False)
 
-    # Updated fields from the frontend form
+  
     agency_registration_date = db.Column(db.Date, nullable=False)
     agency_registration_number = db.Column(db.String(100), nullable=True)
     hq_name = db.Column(db.String(100), nullable=False)
@@ -316,13 +316,11 @@ class ConsortiumApplication(db.Model):
     full_name = db.Column(db.String(100), nullable=False)
     email_address = db.Column(db.String(100), nullable=False)
     additional_accounts = db.Column(db.Integer, nullable=False)
-    mailing_list = db.Column(db.Text, nullable=True)  # You might want to process this as a list of emails
+    mailing_list = db.Column(db.Text, nullable=True)  
     email_copy = db.Column(db.String(100), nullable=False)
     
-    # Foreign key to associate with User
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # This assumes you have a users table
-
-    # Establish a relationship with User
+   
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  
     user = db.relationship('User', back_populates='consortium_applications')
     
     def as_dict(self):
@@ -331,9 +329,9 @@ class ConsortiumApplication(db.Model):
             'full_name': self.full_name,
             'email_address': self.email_address,
             'additional_accounts': self.additional_accounts,
-            'mailing_list': self.mailing_list.splitlines() if self.mailing_list else [],  # Process mailing list
+            'mailing_list': self.mailing_list.splitlines() if self.mailing_list else [], 
             'email_copy': self.email_copy,
-            'user_id': self.user_id  # Include the user_id in the dict representation
+            'user_id': self.user_id  
         }
     
 
@@ -351,9 +349,7 @@ class ConsortiumMemberApplication(db.Model):
     additional_accounts = db.Column(db.Integer, nullable=False)
     mailing_list = db.Column(db.Text, nullable=True)
     email_copy = db.Column(db.String(100), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Foreign key to the User model
-
-    # Relationship
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  
     user = db.relationship('User', back_populates='consortium_member_applications')
 
     def __repr__(self):
@@ -381,26 +377,25 @@ class DocumentUpload(db.Model):
     __tablename__ = 'document_uploads'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Foreign key to associate with the User model
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  
     
-    registration_certificate = db.Column(db.String(255), nullable=False)  # File path for the registration certificate
-    agency_profile = db.Column(db.String(255), nullable=False)  # File path for the agency profile
-    audit_report = db.Column(db.String(255), nullable=False)  # File path for the audit report
-    ngo_consortium_mandate = db.Column(db.String(255), nullable=False)  # File path for the NGO consortium mandate
-    icrc_code_of_conduct = db.Column(db.String(255), nullable=False)  # File path for the ICRC/Red Crescent code of conduct
+    registration_certificate = db.Column(db.String(255), nullable=False) 
+    agency_profile = db.Column(db.String(255), nullable=False)
+    audit_report = db.Column(db.String(255), nullable=False) 
+    ngo_consortium_mandate = db.Column(db.String(255), nullable=False) 
+    icrc_code_of_conduct = db.Column(db.String(255), nullable=False) 
     
-    upload_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)  # Timestamp of the upload
-    status = db.Column(db.String(50), default='Pending', nullable=False)  # Status of the document ('Pending', 'Approved', 'Rejected')
+    upload_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)  
+    status = db.Column(db.String(50), default='Pending', nullable=False) 
 
-    # Relationship with the User model
     user = db.relationship('User', back_populates='document_uploads')
 
     def as_dict(self):
         return {
             'id': self.id,
             'user_id': self.user_id,
-            'username': self.user.username if self.user else "Unknown User",  # Include username
-            'email': self.user.email if self.user else "Unknown Email",  # Include email
+            'username': self.user.username if self.user else "Unknown User",  
+            'email': self.user.email if self.user else "Unknown Email", 
             'registration_certificate': self.registration_certificate,
             'agency_profile': self.agency_profile,
             'audit_report': self.audit_report,

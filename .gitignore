@@ -1,4 +1,6 @@
 instance 
-migrations
+
 __pycache__
 uploads
+
+.env

@@ -22,6 +22,9 @@ from file_utils import save_file_to_directory
 from itsdangerous import URLSafeSerializer
 from flask_mail import Mail , Message
 import pytz
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 app = Flask(__name__)
@@ -29,19 +32,21 @@ CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
 app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'uploads')  
 UPLOAD_DIRECTORY = os.path.join(os.getcwd(), 'uploads')  
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 16 MB
+# app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL")
 
 app.config.from_object(Config)
 app.secret_key = Config.SECRET_KEY
 login_manager = LoginManager(app)  
 login_manager.init_app(app)
-db.init_app(app)
 migrate = Migrate(app, db)
+db.init_app(app)
+
 bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 
 mail = Mail(app)
-with app.app_context():
-    db.create_all()
+# with app.app_context():
+    # db.create_all()
 
 app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=7)
 app.config['SESSION_COOKIE_HTTPONLY'] = True
