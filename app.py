@@ -1174,7 +1174,7 @@ def reset_request ():
         s = URLSafeSerializer(app.secret_key)
         token = s.dumps(email, salt='password-reset-salt')
 
-        reset_link = f'http://localhost:5173/reset-password/{token}'
+        reset_link = f'https://mro-consortium-backend-production.up.railway.app/reset-password/{token}'
 
         msg = Message('Password Reset Request',
                       sender= app.config['MAIL_USERNAME'],
