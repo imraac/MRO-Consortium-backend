@@ -217,17 +217,18 @@ class VerifyToken(Resource):
 @app.route('/agency', methods=['POST'])
 @jwt_required() 
 def add_agency():
-    # Get the user ID from the JWT
+   
     current_user_id = str(get_jwt_identity())
+   
+
     
-    # Parse incoming JSON request data
     data = request.get_json()
     
     try:
-        # Create new Agency instance with the necessary fields
+       
         agency = Agency(
             full_name=data['full_name'],
-            acronym=data.get('acronym'),  # Optional field
+            acronym=data.get('acronym'),  
             description=data['description'],
             mission_statement=data['mission_statement'],
             website=data['website'],
@@ -238,14 +239,11 @@ def add_agency():
             commitment_to_principles=data['commitment_to_principles'],
         )
         
-        # Assign the current user ID to the agency
         agency.user_id = current_user_id  
-        
-        # Add the agency to the database and commit the changes
         db.session.add(agency)
         db.session.commit()
 
-        # Prepare the response data
+        
         response_data = {
             "id": agency.id,
             "full_name": agency.full_name,
@@ -261,15 +259,70 @@ def add_agency():
             "user_id": agency.user_id  
         }
 
-        # Return success message along with the agency data
         return jsonify({"message": "Agency added successfully!", "agency": response_data}), 201
 
     except KeyError as e:
-        # Handle missing required fields
         return jsonify({"error": f"Missing field: {str(e)}"}), 400
     except Exception as e:
-        # Handle other exceptions
         return jsonify({"error": str(e)}), 500
+
+
+# @app.route('/agency', methods=['POST'])
+# @jwt_required() 
+# def add_agency():
+#     # Get the user ID from the JWT
+#     current_user_id = str(get_jwt_identity())
+    
+#     # Parse incoming JSON request data
+#     data = request.get_json()
+    
+#     try:
+#         # Create new Agency instance with the necessary fields
+#         agency = Agency(
+#             full_name=data['full_name'],
+#             acronym=data.get('acronym'),  # Optional field
+#             description=data['description'],
+#             mission_statement=data['mission_statement'],
+#             website=data['website'],
+#             is_ngo=data['is_ngo'],
+#             years_operational=data['years_operational'],
+#             reason_for_joining=data['reason_for_joining'],
+#             willing_to_participate=data['willing_to_participate'],
+#             commitment_to_principles=data['commitment_to_principles'],
+#         )
+        
+#         # Assign the current user ID to the agency
+#         agency.user_id = current_user_id  
+        
+#         # Add the agency to the database and commit the changes
+#         db.session.add(agency)
+#         db.session.commit()
+
+#         # Prepare the response data
+#         response_data = {
+#             "id": agency.id,
+#             "full_name": agency.full_name,
+#             "acronym": agency.acronym,
+#             "description": agency.description,
+#             "mission_statement": agency.mission_statement,
+#             "website": agency.website,
+#             "is_ngo": agency.is_ngo,
+#             "years_operational": agency.years_operational,
+#             "reason_for_joining": agency.reason_for_joining,
+#             "willing_to_participate": agency.willing_to_participate,
+#             "commitment_to_principles": agency.commitment_to_principles,
+#             "user_id": agency.user_id  
+#         }
+
+#         # Return success message along with the agency data
+#         return jsonify({"message": "Agency added successfully!", "agency": response_data}), 201
+
+#     except KeyError as e:
+#         # Handle missing required fields
+#         return jsonify({"error": f"Missing field: {str(e)}"}), 400
+#     except Exception as e:
+#         # Handle other exceptions
+#         return jsonify({"error": str(e)}), 500
 
 
 
