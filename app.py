@@ -620,7 +620,8 @@ def refresh_token():
 @app.route('/consortium', methods=['POST'])
 @jwt_required() 
 def create_consortium():
-    current_user_id = get_jwt_identity()
+   current_user_id = str(get_jwt_identity())
+
     print(f"Current User ID: {current_user_id}")  # Debugging print
     
     data = request.json
