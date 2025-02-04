@@ -617,15 +617,15 @@ def refresh_token():
     return jsonify(newToken=new_token), 200
 
 
-
-
 @app.route('/consortium', methods=['POST'])
 @jwt_required() 
 def create_consortium():
-    current_user_id = get_jwt_identity()  
-
-
+    current_user_id = get_jwt_identity()
+    print(f"Current User ID: {current_user_id}")  # Debugging print
+    
     data = request.json
+    print(f"Data received: {data}")  # Debugging print
+    
     new_consortium = Consortium(
         active_year=data['activeYear'],
         partner_ngos=data['partnerNGOs'],
@@ -642,6 +642,31 @@ def create_consortium():
     db.session.commit()
     
     return jsonify(new_consortium.as_dict()), 201
+
+
+# @app.route('/consortium', methods=['POST'])
+# @jwt_required() 
+# def create_consortium():
+#     current_user_id = get_jwt_identity()  
+
+
+#     data = request.json
+#     new_consortium = Consortium(
+#         active_year=data['activeYear'],
+#         partner_ngos=data['partnerNGOs'],
+#         international_staff=data['internationalStaff'],
+#         national_staff=data['nationalStaff'],
+#         program_plans=data['programPlans'],
+#         main_donors=data['mainDonors'],
+#         annual_budget=data['annualBudget'],
+#         membership_type=data['membershipType'],
+#         user_id=current_user_id  
+#     )
+    
+#     db.session.add(new_consortium)
+#     db.session.commit()
+    
+#     return jsonify(new_consortium.as_dict()), 201
 
 @app.route('/consortium', methods=['GET'])
 @jwt_required()  
