@@ -212,20 +212,46 @@ class VerifyToken(Resource):
             }, 200)
         return make_response({"message": "Invalid token"}, 401)
 # 
-
-
 @app.route('/agency', methods=['POST'])
 @jwt_required() 
 def add_agency():
-   
     current_user_id = get_jwt_identity()  
-   
-
     
     data = request.get_json()
     
+    # Fields to validate
+    required_fields = [
+        'full_name', 'description', 'mission_statement', 'website', 
+        'is_ngo', 'years_operational', 'reason_for_joining', 
+        'willing_to_participate', 'commitment_to_principles'
+    ]
+    
+    # Check for missing required fields
+    missing_fields = [field for field in required_fields if field not in data]
+    if missing_fields:
+        return jsonify({"error": f"Missing field(s): {', '.join(missing_fields)}"}), 400
+    
+    # Type validation for specific fields (e.g., boolean, integer, string)
+    if not isinstance(data['is_ngo'], bool):
+        return jsonify({"error": "'is_ngo' must be a boolean"}), 400
+    if not isinstance(data['years_operational'], int):
+        return jsonify({"error": "'years_operational' must be an integer"}), 400
+    if not isinstance(data['full_name'], str):
+        return jsonify({"error": "'full_name' must be a string"}), 400
+    if not isinstance(data['description'], str):
+        return jsonify({"error": "'description' must be a string"}), 400
+    if not isinstance(data['mission_statement'], str):
+        return jsonify({"error": "'mission_statement' must be a string"}), 400
+    if not isinstance(data['website'], str):
+        return jsonify({"error": "'website' must be a string"}), 400
+    if not isinstance(data['reason_for_joining'], str):
+        return jsonify({"error": "'reason_for_joining' must be a string"}), 400
+    if not isinstance(data['willing_to_participate'], bool):
+        return jsonify({"error": "'willing_to_participate' must be a boolean"}), 400
+    if not isinstance(data['commitment_to_principles'], str):
+        return jsonify({"error": "'commitment_to_principles' must be a string"}), 400
+    
     try:
-       
         agency = Agency(
             full_name=data['full_name'],
             acronym=data.get('acronym'),  
@@ -243,7 +269,6 @@ def add_agency():
         db.session.add(agency)
         db.session.commit()
 
-        
         response_data = {
             "id": agency.id,
             "full_name": agency.full_name,
@@ -261,10 +286,61 @@ def add_agency():
 
         return jsonify({"message": "Agency added successfully!", "agency": response_data}), 201
 
-    except KeyError as e:
-        return jsonify({"error": f"Missing field: {str(e)}"}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# @app.route('/agency', methods=['POST'])
+# @jwt_required() 
+# def add_agency():
+   
+#     current_user_id = get_jwt_identity()  
+   
+
+    
+#     data = request.get_json()
+    
+#     try:
+       
+#         agency = Agency(
+#             full_name=data['full_name'],
+#             acronym=data.get('acronym'),  
+#             description=data['description'],
+#             mission_statement=data['mission_statement'],
+#             website=data['website'],
+#             is_ngo=data['is_ngo'],
+#             years_operational=data['years_operational'],
+#             reason_for_joining=data['reason_for_joining'],
+#             willing_to_participate=data['willing_to_participate'],
+#             commitment_to_principles=data['commitment_to_principles'],
+#         )
+        
+#         agency.user_id = current_user_id  
+#         db.session.add(agency)
+#         db.session.commit()
+
+        
+#         response_data = {
+#             "id": agency.id,
+#             "full_name": agency.full_name,
+#             "acronym": agency.acronym,
+#             "description": agency.description,
+#             "mission_statement": agency.mission_statement,
+#             "website": agency.website,
+#             "is_ngo": agency.is_ngo,
+#             "years_operational": agency.years_operational,
+#             "reason_for_joining": agency.reason_for_joining,
+#             "willing_to_participate": agency.willing_to_participate,
+#             "commitment_to_principles": agency.commitment_to_principles,
+#             "user_id": agency.user_id  
+#         }
+
+#         return jsonify({"message": "Agency added successfully!", "agency": response_data}), 201
+
+#     except KeyError as e:
+#         return jsonify({"error": f"Missing field: {str(e)}"}), 400
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
 
 
 
