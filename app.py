@@ -502,7 +502,7 @@ def log_user_action():
 @app.route('/founders', methods=['POST'])
 @jwt_required()  
 def create_founder():
-    current_user_id = get_jwt_identity()  
+    current_user_id = str(get_jwt_identity()) 
   
     
     data = request.json
@@ -563,7 +563,7 @@ def handle_founder(id):
 @app.route('/board-directors', methods=['GET', 'POST'])
 @jwt_required() 
 def handle_board_directors():
-    current_user_id = get_jwt_identity()  
+    current_user_id = str(get_jwt_identity())  
     print(f"User ID: {current_user_id}")  
     if current_user_id is None:
         return jsonify({"msg": "User ID not found in token."}), 401 
@@ -613,7 +613,7 @@ def handle_board_director(id):
 @app.route('/key-staff', methods=['GET', 'POST'])
 @jwt_required()
 def handle_key_staff():
-    current_user_id = get_jwt_identity()
+    current_user_id = str(get_jwt_identity())
   
 
     if request.method == 'POST':
@@ -744,7 +744,7 @@ def get_consortia():
 @jwt_required()  
 def create_member_account():
     data = request.json
-    current_user_id = get_jwt_identity()  
+    current_user_id = str(get_jwt_identity())  
     
     try:
         new_member = MemberAccountAdministrator(
@@ -790,7 +790,7 @@ def update_member_account(id):
     data = request.json
     member = MemberAccountAdministrator.query.get_or_404(id)
     
-    current_user_id = get_jwt_identity()  
+    current_user_id = str(get_jwt_identity())  
     
     if member.user_id != current_user_id:
         return jsonify({'error': 'Unauthorized access.'}), 403
@@ -911,7 +911,7 @@ def get_member_account(id):
 @app.route('/agency-details', methods=['POST'])
 @jwt_required()  
 def create_con():
-    current_user_id = get_jwt_identity()  
+    current_user_id = str(get_jwt_identity())  
    
     data = request.get_json()
     
@@ -944,7 +944,7 @@ def create_con():
 @app.route('/consortium_application', methods=['POST'])
 @jwt_required() 
 def create_consortium_application():
-    current_user_id = get_jwt_identity()  
+    current_user_id = str(get_jwt_identity())  
 
     data = request.get_json()
 
@@ -1003,7 +1003,7 @@ def create_consortium_application():
 @app.route('/consortium_applications', methods=['GET'])
 @jwt_required()  
 def get_consortium_applications():
-    current_user_id = get_jwt_identity()  
+    current_user_id = str(get_jwt_identity())  
 
     applications = ConsortiumMemberApplication.query.filter_by(user_id=current_user_id).all()
 
@@ -1016,7 +1016,7 @@ def get_consortium_applications():
 @app.route('/consortium_applications/user/<int:user_id>', methods=['GET'])
 @jwt_required() 
 def get_consortium_applications_by_user(user_id):
-    current_user_id = get_jwt_identity() 
+    current_user_id = str(get_jwt_identity()) 
 
     if current_user_id != user_id:
         return jsonify({'error': 'You are not authorized to view this data.'}), 403
@@ -1039,7 +1039,7 @@ def get_consortium_applications_by_user(user_id):
 @app.route('/upload-single', methods=['POST'])
 @jwt_required()
 def upload_single_document():
-    current_user_id = get_jwt_identity()
+    current_user_id = str(get_jwt_identity())
     if 'unique_document' not in request.files:
         return jsonify({"error": "No file part in the request"}), 400
 
@@ -1072,7 +1072,7 @@ def upload_single_document():
 @app.route('/upload', methods=['POST'])
 @jwt_required()
 def upload_document():
-    current_user_id = get_jwt_identity()
+    current_user_id = str(get_jwt_identity())
     files = request.files
 
     required_files = [
@@ -1116,7 +1116,7 @@ def upload_document():
 @app.route('/admin/documents', methods=['GET'])
 @jwt_required()
 def get_uploaded_documents():
-    current_user_id = get_jwt_identity()
+    current_user_id = str(get_jwt_identity())
     
     if not is_admin(current_user_id):
         return jsonify({"error": "Access forbidden: Admins only."}), 403
@@ -1177,7 +1177,7 @@ def save_file_to_directory(file):
 @app.route('/admin/documents/<int:document_id>/approve', methods=['POST'])
 @jwt_required()
 def approve_document(document_id):
-    current_user = get_jwt_identity()
+    current_user_id = str(get_jwt_identity())
     if not is_admin(current_user):
         return jsonify({"error": "Unauthorized access"}), 403
 
@@ -1197,7 +1197,7 @@ def approve_document(document_id):
 @app.route('/admin/documents/<int:document_id>/reject', methods=['POST'])
 @jwt_required()
 def reject_document(document_id):
-    current_user = get_jwt_identity()
+    current_user_id = str(get_jwt_identity())
     if not is_admin(current_user):
         return jsonify({"error": "Unauthorized access"}), 403
 
@@ -1221,7 +1221,7 @@ def reject_document(document_id):
 @app.route('/documents', methods=['GET'])
 @jwt_required()
 def get_user_documents():
-    current_user_id = get_jwt_identity()
+    current_user_id = str(get_jwt_identity())
     
     documents = DocumentUpload.query.filter_by(user_id=current_user_id).all()
 
@@ -1258,7 +1258,7 @@ def reset_request ():
         s = URLSafeSerializer(app.secret_key)
         token = s.dumps(email, salt='password-reset-salt')
 
-        reset_link = f'http://localhost:5173/reset-password/{token}'
+        reset_link = f'https://mro-consortium-backend-production.up.railway.app/reset-password/{token}'
 
         msg = Message('Password Reset Request',
                       sender= app.config['MAIL_USERNAME'],
