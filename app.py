@@ -218,7 +218,7 @@ class VerifyToken(Resource):
 @jwt_required() 
 def add_agency():
     # Get the user ID from the JWT
-    current_user_id = get_jwt_identity()  
+    current_user_id = str(get_jwt_identity())
     
     # Parse incoming JSON request data
     data = request.get_json()
