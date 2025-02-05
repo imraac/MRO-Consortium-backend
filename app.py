@@ -28,7 +28,9 @@ load_dotenv()
 
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
+# CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
+CORS(app, supports_credentials=True, resources={r"/*": {"origins": "https://mrosconsortium.org"}})
+
 app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'uploads')  
 UPLOAD_DIRECTORY = os.path.join(os.getcwd(), 'uploads')  
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 16 MB
