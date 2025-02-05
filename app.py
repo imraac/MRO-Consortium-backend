@@ -1173,14 +1173,12 @@ def save_file_to_directory(file):
 
 
 
+
 @app.route('/admin/documents/<int:document_id>/approve', methods=['POST'])
 @jwt_required()
 def approve_document(document_id):
-    current_user_id = str(get_jwt_identity())  # Ensure this matches your user model's ID type
-
-    # Fetch the current user (if needed)
-    current_user = User.query.get(current_user_id)
-    if not current_user or not is_admin(current_user):
+    current_user_id = str(get_jwt_identity())
+    if not is_admin(current_user):
         return jsonify({"error": "Unauthorized access"}), 403
 
     document = DocumentUpload.query.get(document_id)
@@ -1191,59 +1189,32 @@ def approve_document(document_id):
 
     user = document.user  
     if user:
-        user.is_approved = True  # Ensure the user model has this field
+        user.is_approved = True
 
-    try:
-        db.session.commit()
-        return jsonify({"message": "Document approved successfully, and user status updated."}), 200
-    except Exception as e:
-        db.session.rollback()  # Rollback in case of an error
-        return jsonify({"error": f"Database error: {str(e)}"}), 500
-
-
-# @app.route('/admin/documents/<int:document_id>/reject', methods=['POST'])
-# @jwt_required()
-# def reject_document(document_id):
-#     current_user_id = str(get_jwt_identity())
-#     if not is_admin(current_user):
-#         return jsonify({"error": "Unauthorized access"}), 403
-
-#     document = DocumentUpload.query.get(document_id)
-#     if not document:
-#         return jsonify({"error": "Document not found"}), 404
-
-#     document.status = 'Rejected'
-
-   
-#     user = document.user  
-#     if user:
-#         user.is_approved = False
-
-#     db.session.commit()
-#     return jsonify({"message": "Document rejected successfully, and user status updated."}), 200
+    db.session.commit()
+    return jsonify({"message": "Document approved successfully, and user status updated."}), 200
 
 @app.route('/admin/documents/<int:document_id>/reject', methods=['POST'])
 @jwt_required()
 def reject_document(document_id):
-    current_user_id = str(get_jwt_identity())  # Convert the user ID to string
-    current_user = User.query.get(current_user_id)  # Retrieve the user object from the database
-    
-    if not current_user or not is_admin(current_user):  # Check if the user exists and is an admin
+    current_user_id = str(get_jwt_identity())
+    if not is_admin(current_user):
         return jsonify({"error": "Unauthorized access"}), 403
 
-    document = DocumentUpload.query.get(document_id)  # Get the document by its ID
+    document = DocumentUpload.query.get(document_id)
     if not document:
         return jsonify({"error": "Document not found"}), 404
 
-    document.status = 'Rejected'  # Set the document status to 'Rejected'
+    document.status = 'Rejected'
+
    
-    user = document.user  # Get the associated user of the document
+    user = document.user  
     if user:
-        user.is_approved = False  # Set the user's approval status to False
+        user.is_approved = False
 
-    db.session.commit()  # Commit the changes to the database
-
+    db.session.commit()
     return jsonify({"message": "Document rejected successfully, and user status updated."}), 200
+
 
     
     
