@@ -1172,13 +1172,13 @@ def save_file_to_directory(file):
 
 
 
-
-
 @app.route('/admin/documents/<int:document_id>/approve', methods=['POST'])
 @jwt_required()
 def approve_document(document_id):
-    current_user_id = str(get_jwt_identity())
-    if not is_admin(current_user):
+    current_user_id = get_jwt_identity()  # Should return user ID, not the full object
+    user = User.query.get(current_user_id)  # Now fetching user by ID
+
+    if not user or not is_admin(user):
         return jsonify({"error": "Unauthorized access"}), 403
 
     document = DocumentUpload.query.get(document_id)
@@ -1187,12 +1187,12 @@ def approve_document(document_id):
 
     document.status = 'Approved'
 
-    user = document.user  
-    if user:
-        user.is_approved = True
+    if document.user:
+        document.user.is_approved = True
 
     db.session.commit()
     return jsonify({"message": "Document approved successfully, and user status updated."}), 200
+
 
 # @app.route('/admin/documents/<int:document_id>/reject', methods=['POST'])
 # @jwt_required()
