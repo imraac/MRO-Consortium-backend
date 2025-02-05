@@ -1245,45 +1245,102 @@ def get_user_documents():
 
 
 
-
-
-
-
 @app.route('/reset-password', methods=['POST'])
-def reset_request ():
-    data = request.get_json()
-    email = data.get('email')
-    user = User.query.filter_by(email=email).first()
-
-
-    if user:
-        s = URLSafeSerializer(app.secret_key)
-        token = s.dumps(email, salt='password-reset-salt')
-
-        reset_link = f'https://mro-consortium-backend-production.up.railway.app/reset-password/{token}'
-
-        msg = Message('Password Reset Request',
-                      sender= app.config['MAIL_USERNAME'],
-                      recipients=[email])
-        msg.body = f'Please click the link to reset your password: {reset_link}'
-
-
-        try:
-            mail.send(msg)
-            return make_response({
-                "success": True,
-                "message": "Password reset email sent. Please check your inbox."
-            }, 200)
-        except Exception as e:
+def reset_request():
+    try:
+        data = request.get_json()
+        if not data:
+            logging.error('No JSON data received')
             return make_response({
                 "success": False,
-                "message": "Failed to send email. Please try again."
-            }, 500)
+                "message": "Invalid JSON request"
+            }, 400)
+
+        email = data.get('email')
+        if not email:
+            logging.error('No email provided')
+            return make_response({
+                "success": False,
+                "message": "Email is required"
+            }, 400)
+
+        user = User.query.filter_by(email=email).first()
+        if user:
+            logging.info(f"User found for email: {email}")
+            s = URLSafeSerializer(app.secret_key)
+            token = s.dumps(email, salt='password-reset-salt')
+            reset_link = f'https://mro-consortium-backend-production.up.railway.app/reset-password/{token}'
+
+            msg = Message('Password Reset Request',
+                          sender=app.config['MAIL_USERNAME'],
+                          recipients=[email])
+            msg.body = f'Please click the link to reset your password: {reset_link}'
+
+            try:
+                mail.send(msg)
+                logging.info(f"Password reset email sent to {email}")
+                return make_response({
+                    "success": True,
+                    "message": "Password reset email sent. Please check your inbox."
+                }, 200)
+            except Exception as e:
+                logging.error(f"Failed to send email: {str(e)}")
+                return make_response({
+                    "success": False,
+                    "message": "Failed to send email. Please try again."
+                }, 500)
+        else:
+            logging.error(f"Email not found: {email}")
+            return make_response({
+                "success": False,
+                "message": "Email not found."
+            }, 404)
+    except Exception as e:
+        logging.error(f"Error in /reset-password route: {str(e)}")
+        return make_response({
+            "success": False,
+            "message": "Internal server error"
+        }, 500)
+
+
+
+
+
+# @app.route('/reset-password', methods=['POST'])
+# def reset_request ():
+#     data = request.get_json()
+#     email = data.get('email')
+#     user = User.query.filter_by(email=email).first()
+
+
+#     if user:
+#         s = URLSafeSerializer(app.secret_key)
+#         token = s.dumps(email, salt='password-reset-salt')
+
+#         reset_link = f'https://mro-consortium-backend-production.up.railway.app/reset-password/{token}'
+
+#         msg = Message('Password Reset Request',
+#                       sender= app.config['MAIL_USERNAME'],
+#                       recipients=[email])
+#         msg.body = f'Please click the link to reset your password: {reset_link}'
+
+
+#         try:
+#             mail.send(msg)
+#             return make_response({
+#                 "success": True,
+#                 "message": "Password reset email sent. Please check your inbox."
+#             }, 200)
+#         except Exception as e:
+#             return make_response({
+#                 "success": False,
+#                 "message": "Failed to send email. Please try again."
+#             }, 500)
         
-    return make_response({
-        "success": False,
-        "message": "Email not found."
-    }, 404)
+#     return make_response({
+#         "success": False,
+#         "message": "Email not found."
+#     }, 404)
 
 
 @app.route('/reset-password/<token>', methods=['POST'])
