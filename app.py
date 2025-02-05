@@ -1257,6 +1257,7 @@ def reject_document(document_id):
     if user:
         user.is_approved = False
 
+
     db.session.commit()
     return jsonify({"message": "Document rejected successfully, and user status updated."}), 200
 
