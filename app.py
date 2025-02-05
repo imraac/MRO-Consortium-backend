@@ -1178,7 +1178,8 @@ def save_file_to_directory(file):
 @jwt_required()
 def approve_document(document_id):
     current_user_id = str(get_jwt_identity())
-    if not is_admin(current_user):
+    if not is_admin(current_user_id):  # Use current_user_id
+
         return jsonify({"error": "Unauthorized access"}), 403
 
     document = DocumentUpload.query.get(document_id)
